@@ -4,7 +4,7 @@ public struct Effect<Action> {
     @usableFromInline
     enum Operation {
         case none
-        case task(TaskPriority? = nil, body: @MainActor (Send) async -> Void)
+        case task(TaskPriority? = nil, body: @Sendable @MainActor (Send) async -> Void)
     }
 
     @usableFromInline
