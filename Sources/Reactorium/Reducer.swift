@@ -7,4 +7,3 @@ public protocol Reducer<State, Action, Dependency> {
 
     func reduce(into state: inout State, action: Action, dependency: Dependency) -> Effect<Action>
 }
-
