@@ -4,5 +4,5 @@
     "config:base"
   ],
   "timezone": "Asia/Tokyo",
-  "automerge": true,
+  "automerge": true
 }
