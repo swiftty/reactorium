@@ -67,6 +67,28 @@ extension View {
     }
 }
 
+extension View {
+    @MainActor
+    public func store<S: Sendable, A>(
+        initialState: @escaping @autoclosure () -> S,
+        reducer: some Reducer<S, A, Void>
+    ) -> some View {
+        modifier(StoreInjector(dependency: { _ in }) { dependency in
+            Store(initialState: initialState(), reducer: reducer, dependency: dependency)
+        })
+    }
+
+    @MainActor
+    public func store<S: Equatable & Sendable, A>(
+        initialState: @escaping @autoclosure () -> S,
+        reducer: some Reducer<S, A, Void>
+    ) -> some View {
+        modifier(StoreInjector(dependency: { _ in }) { dependency in
+            Store(initialState: initialState(), reducer: reducer, dependency: dependency, removeDuplicates: ==)
+        })
+    }
+}
+
 // MARK: -
 struct StoreInjector<State: Sendable, Action, Dependency>: EnvironmentalModifier {
     struct Modifier: ViewModifier {

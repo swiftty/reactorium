@@ -21,7 +21,7 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
     let reducer: any Reducer<State, Action, Dependency>
 
     // MARK: -
-    init(
+    public init(
         initialState: State,
         reducer: some Reducer<State, Action, Dependency>,
         dependency: Dependency,
@@ -153,7 +153,7 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
 }
 
 extension Store where State: Equatable {
-    convenience init(
+    public convenience init(
         initialState: State,
         reducer: some Reducer<State, Action, Dependency>,
         dependency: Dependency
