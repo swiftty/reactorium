@@ -19,7 +19,35 @@ public struct Effect<Action> {
     }
 }
 
+extension Effect {
+    @inlinable
+    public static func task(
+        priority: TaskPriority? = nil,
+        operation body: @escaping @Sendable @MainActor (Send) async -> Void
+    ) -> Self {
+        .init(operation: .task(priority, body: body))
+    }
+
+    @inlinable
+    public static func task(
+        priority: TaskPriority? = nil,
+        operation body: @escaping @Sendable @MainActor (Send) async throws -> Void,
+        catch errorBody: @escaping @Sendable (Error, Send) async -> Void
+    ) -> Self {
+        .init(operation: .task(priority) { send in
+            do {
+                try await body(send)
+            } catch is CancellationError {
+                return
+            } catch {
+                await errorBody(error, send)
+            }
+        })
+    }
+}
+
 extension Effect: ExpressibleByNilLiteral {
+    @inlinable
     public init(nilLiteral: ()) {
         self.init(operation: .none)
     }
