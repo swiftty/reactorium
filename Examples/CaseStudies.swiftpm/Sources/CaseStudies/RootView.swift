@@ -4,6 +4,7 @@ import Reactorium
 struct RootView: View {
     enum Examples {
         struct Basics: Hashable {}
+        struct Animations: Hashable {}
     }
 
     var body: some View {
@@ -13,12 +14,20 @@ struct RootView: View {
                     NavigationLink(value: Examples.Basics()) {
                         Text("Basics")
                     }
+
+                    NavigationLink(value: Examples.Animations()) {
+                        Text("Animations")
+                    }
                 }
             }
             .navigationTitle("Case Studies")
             .navigationDestination(for: Examples.Basics.self) { _ in
                 CounterDemoView()
                     .store(initialState: .init(), reducer: Counter())
+            }
+            .navigationDestination(for: Examples.Animations.self) { _ in
+                AnimationsView()
+                    .store(initialState: .init(), reducer: Animations(), dependency: { env in .init(clock: env.clock) })
             }
         }
     }
