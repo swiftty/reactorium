@@ -19,11 +19,11 @@ extension Effect {
     }
 
     @inlinable
-    public func cancel<I>(id: I.Type) -> Self {
+    public static func cancel<I>(id: I.Type) -> Self {
         cancel(id: ObjectIdentifier(id))
     }
 
-    public func cancel(id: some Hashable & Sendable) -> Self {
+    public static func cancel(id: some Hashable & Sendable) -> Self {
         .init(operation: .task { _ in
             await _cancellables.cancel(by: .init(id: id))
         })
