@@ -40,7 +40,6 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
                 }
         } else {
             cancellables = _state
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] _ in
                     assert(Thread.isMainThread)
                     self?.objectWillChange.send()
