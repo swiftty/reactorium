@@ -25,10 +25,18 @@ extension Store {
 }
 
 extension Store {
-    public subscript <V> (keyPath: KeyPath<State, V>) -> (@escaping (V) -> Action) -> Binding<V> {
-        return { setter in
-            self.binding(get: { $0[keyPath: keyPath] }, set: setter)
+    public struct Binder<V> {
+        let store: Store
+        let keyPath: KeyPath<State, V>
+
+        @MainActor
+        public func callAsFunction(action setter: @escaping (V) -> Action) -> Binding<V> {
+            store.binding(get: { $0[keyPath: keyPath] }, set: setter)
         }
+    }
+
+    public subscript <V> (binding keyPath: KeyPath<State, V>) -> Binder<V> {
+        Binder(store: self, keyPath: keyPath)
     }
 
     public func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
