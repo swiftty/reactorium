@@ -25,20 +25,6 @@ extension Store {
 }
 
 extension Store {
-    public struct Binder<V> {
-        let store: Store
-        let keyPath: KeyPath<State, V>
-
-        @MainActor
-        public func callAsFunction(action setter: @escaping (V) -> Action) -> Binding<V> {
-            store.binding(get: { $0[keyPath: keyPath] }, set: setter)
-        }
-    }
-
-    public subscript <V> (binding keyPath: KeyPath<State, V>) -> Binder<V> {
-        Binder(store: self, keyPath: keyPath)
-    }
-
     public func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
         ObservedObject(wrappedValue: self)
             .projectedValue[get: .init(value: getter), set: .init(value: setter)]
@@ -114,9 +100,10 @@ struct StoreInjector<State: Sendable, Action, Dependency>: EnvironmentalModifier
     let inject: (Dependency) -> Store<State, Action, Dependency>
 
     func resolve(in environment: EnvironmentValues) -> some ViewModifier {
-        Modifier(
-            store: inject(dependency(environment)),
-            dependency: dependency(environment)
+        let dependency = dependency(environment)
+        return Modifier(
+            store: inject(dependency),
+            dependency: dependency
         )
     }
 }

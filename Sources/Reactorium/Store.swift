@@ -3,7 +3,7 @@ import Foundation
 
 @MainActor
 public class Store<State: Sendable, Action, Dependency>: ObservableObject {
-    public var state: State { _state.value }
+    @Bindable public var state: State
 
     // MARK: -
     @usableFromInline
@@ -17,7 +17,7 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
 
     var dependency: Dependency
 
-    let _state: CurrentValueSubject<State, Never>
+    let __state: CurrentValueSubject<State, Never>
     let reducer: any Reducer<State, Action, Dependency>
 
     // MARK: -
@@ -27,19 +27,21 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         dependency: Dependency,
         removeDuplicates isDuplicate: ((State, State) -> Bool)? = nil
     ) {
-        _state = .init(initialState)
+        __state = .init(initialState)
         self.reducer = reducer
         self.dependency = dependency
 
         if let isDuplicate {
-            cancellables = _state
+            cancellables = __state
+                .dropFirst()
                 .removeDuplicates(by: isDuplicate)
                 .sink { [weak self] _ in
                     assert(Thread.isMainThread)
                     self?.objectWillChange.send()
                 }
         } else {
-            cancellables = _state
+            cancellables = __state
+                .dropFirst()
                 .sink { [weak self] _ in
                     assert(Thread.isMainThread)
                     self?.objectWillChange.send()
@@ -74,12 +76,12 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         guard !isSending else { return nil }
 
         isSending = true
-        var currentState = _state.value
+        var currentState = __state.value
 
         var tasks: [Task<Void, Never>] = []
         defer {
             bufferdActions.removeAll()
-            _state.value = currentState
+            __state.value = currentState
             isSending = false
             assert(bufferdActions.isEmpty)
         }
@@ -131,11 +133,11 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
     @usableFromInline
     func _yield(while predicate: @escaping @Sendable (State) -> Bool) async {
         if #available(iOS 15, macOS 12, *) {
-            for await state in _state.values where !predicate(state) {
+            for await state in __state.values where !predicate(state) {
                 return
             }
         } else {
-            let state = _state
+            let state = __state
             let context = YieldContext()
             Task.detached {
                 try? await withTaskCancellationHandler {
