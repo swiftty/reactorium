@@ -1,13 +1,15 @@
 import SwiftUI
 @preconcurrency import Combine
 
+@usableFromInline
 @MainActor
-protocol StoreImpl<State, Action, Dependency> {
+protocol StoreImpl<State, Action, Dependency>: AnyObject {
     associatedtype State: Sendable
     associatedtype Action
     associatedtype Dependency
 
     var state: State { get }
+    var reducer: any Reducer<State, Action, Dependency> { get }
     var dependency: Dependency { get set }
 
     var objectWillChange: ObservableObjectPublisher { get }
@@ -168,5 +170,29 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
                 }
             }
         }
+    }
+}
+
+// MARK: -
+actor YieldContext {
+    private var cancellable: AnyCancellable?
+
+    func register<T>(_ values: some Publisher<T, Never>) async throws -> T {
+        cancel()
+        return try await withUnsafeThrowingContinuation { continuation in
+            if Task.isCancelled {
+                continuation.resume(throwing: CancellationError())
+            }
+            cancellable = values
+                .prefix(1)
+                .sink { value in
+                    continuation.resume(returning: value)
+                }
+        }
+    }
+
+    func cancel() {
+        cancellable?.cancel()
+        cancellable = nil
     }
 }

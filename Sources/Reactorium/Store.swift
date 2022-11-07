@@ -5,20 +5,20 @@ import Foundation
 public class Store<State: Sendable, Action, Dependency>: ObservableObject {
     @Bindable public var state: State
 
+    public var reducer: any Reducer<State, Action, Dependency> {
+        get { impl.reducer }
+    }
+
+    public var dependency: Dependency {
+        get { impl.dependency }
+        set { impl.dependency = newValue }
+    }
+
+    public let objectWillChange: ObservableObjectPublisher
+
     // MARK: -
     @usableFromInline
-    private(set) var cancellables: AnyCancellable? = nil
-
-    @usableFromInline
-    var bufferdActions: [Action] = []
-
-    @usableFromInline
-    var isSending = false
-
-    var dependency: Dependency
-
-    let __state: CurrentValueSubject<State, Never>
-    let reducer: any Reducer<State, Action, Dependency>
+    let impl: any StoreImpl<State, Action, Dependency>
 
     // MARK: -
     public init(
@@ -27,129 +27,24 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         dependency: Dependency,
         removeDuplicates isDuplicate: ((State, State) -> Bool)? = nil
     ) {
-        __state = .init(initialState)
-        self.reducer = reducer
-        self.dependency = dependency
-
-        if let isDuplicate {
-            cancellables = __state
-                .dropFirst()
-                .removeDuplicates(by: isDuplicate)
-                .sink { [weak self] _ in
-                    assert(Thread.isMainThread)
-                    self?.objectWillChange.send()
-                }
-        } else {
-            cancellables = __state
-                .dropFirst()
-                .sink { [weak self] _ in
-                    assert(Thread.isMainThread)
-                    self?.objectWillChange.send()
-                }
-        }
+        impl = RootStore(initialState: initialState, reducer: reducer, dependency: dependency, removeDuplicates: isDuplicate)
+        objectWillChange = impl.objectWillChange
     }
 
     @inlinable
     @discardableResult
     public func send(_ newAction: Action) -> ActionTask {
-        let task = _send(newAction, from: nil)
-        return ActionTask(task: task)
+        impl.send(newAction)
     }
 
     @inlinable
     public func send(_ newAction: Action, while predicate: @escaping @Sendable (State) -> Bool) async {
-        let task = send(newAction)
-        await Task.detached { [weak self] in
-            await withTaskCancellationHandler {
-                await self?._yield(while: predicate)
-            } onCancel: {
-                Task {
-                    await task.cancel()
-                }
-            }
-        }.value
+        await impl.send(newAction, while: predicate)
     }
 
     @usableFromInline
-    func _send(_ newAction: Action, from originalAction: Action?) -> Task<Void, Never>? {
-        bufferdActions.append(newAction)
-        guard !isSending else { return nil }
-
-        isSending = true
-        var currentState = __state.value
-
-        var tasks: [Task<Void, Never>] = []
-        defer {
-            bufferdActions.removeAll()
-            __state.value = currentState
-            isSending = false
-            assert(bufferdActions.isEmpty)
-        }
-
-        let dependency = dependency
-        var index = bufferdActions.startIndex
-        while index < bufferdActions.endIndex {
-            defer { index += 1 }
-
-            let newAction = bufferdActions[index]
-            let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
-
-            switch effect.operation {
-            case .none:
-                break
-
-            case .task(let priority, let runner):
-                tasks.append(Task(priority: priority) { [weak self] in
-                    await runner(Effect.Send {
-                        if let task = self?._send($0, from: newAction) {
-                            tasks.append(task)
-                        }
-                    })
-                })
-            }
-        }
-
-        guard !tasks.isEmpty else { return nil }
-
-        return Task.detached {
-            await withTaskCancellationHandler { @MainActor in
-                var i = tasks.startIndex
-                while i < tasks.endIndex {
-                    defer { i += 1 }
-                    await tasks[i].value
-                }
-            } onCancel: {
-                Task { @MainActor in
-                    var i = tasks.startIndex
-                    while i < tasks.endIndex {
-                        defer { i += 1 }
-                        tasks[i].cancel()
-                    }
-                }
-            }
-        }
-    }
-
-    @usableFromInline
-    func _yield(while predicate: @escaping @Sendable (State) -> Bool) async {
-        if #available(iOS 15, macOS 12, *) {
-            for await state in __state.values where !predicate(state) {
-                return
-            }
-        } else {
-            let state = __state
-            let context = YieldContext()
-            Task.detached {
-                try? await withTaskCancellationHandler {
-                    try Task.checkCancellation()
-                    _ = try await context.register(state.filter { !predicate($0) })
-                } onCancel: {
-                    Task {
-                        await context.cancel()
-                    }
-                }
-            }
-        }
+    func yield(while predicate: @escaping @Sendable (State) -> Bool) async {
+        await impl.yield(while: predicate)
     }
 }
 
@@ -192,27 +87,3 @@ extension Store {
 }
 
 public typealias StoreOf<R: Reducer> = Store<R.State, R.Action, R.Dependency>
-
-// MARK: -
-actor YieldContext {
-    private var cancellable: AnyCancellable?
-
-    func register<T>(_ values: some Publisher<T, Never>) async throws -> T {
-        cancel()
-        return try await withUnsafeThrowingContinuation { continuation in
-            if Task.isCancelled {
-                continuation.resume(throwing: CancellationError())
-            }
-            cancellable = values
-                .prefix(1)
-                .sink { value in
-                    continuation.resume(returning: value)
-                }
-        }
-    }
-
-    func cancel() {
-        cancellable?.cancel()
-        cancellable = nil
-    }
-}

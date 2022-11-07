@@ -32,7 +32,7 @@ extension Store {
             wrapped wrappedKeyPath: KeyPath<Store, State>,
             storage storageKeyPath: KeyPath<Store, Self>
         ) -> State {
-            instance.__state.value
+            instance.impl.state
         }
 
         // MARK: - projectedValue

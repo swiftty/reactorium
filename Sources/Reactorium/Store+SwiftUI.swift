@@ -14,7 +14,7 @@ extension Store {
         let task = send(newAction, animation: animation)
         await Task.detached { [weak self] in
             await withTaskCancellationHandler {
-                await self?._yield(while: predicate)
+                await self?.yield(while: predicate)
             } onCancel: {
                 Task {
                     await task.cancel()
