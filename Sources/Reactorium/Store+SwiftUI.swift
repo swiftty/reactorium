@@ -44,7 +44,7 @@ extension View {
         reducer: some Reducer<S, A, D>,
         dependency: @escaping (EnvironmentValues) -> D
     ) -> some View {
-        modifier(StoreInjector(dependency: dependency) { dependency in
+        modifier(EnvironmentResolver(dependency: dependency) { dependency in
             Store(initialState: initialState(), reducer: reducer, dependency: dependency)
         })
     }
@@ -55,7 +55,7 @@ extension View {
         reducer: some Reducer<S, A, D>,
         dependency: @escaping (EnvironmentValues) -> D
     ) -> some View {
-        modifier(StoreInjector(dependency: dependency) { dependency in
+        modifier(EnvironmentResolver(dependency: dependency) { dependency in
             Store(initialState: initialState(), reducer: reducer, dependency: dependency, removeDuplicates: ==)
         })
     }
@@ -67,7 +67,7 @@ extension View {
         initialState: @escaping @autoclosure () -> S,
         reducer: some Reducer<S, A, Void>
     ) -> some View {
-        modifier(StoreInjector(dependency: { _ in }) { dependency in
+        modifier(EnvironmentResolver(dependency: { _ in }) { dependency in
             Store(initialState: initialState(), reducer: reducer, dependency: dependency)
         })
     }
@@ -77,14 +77,14 @@ extension View {
         initialState: @escaping @autoclosure () -> S,
         reducer: some Reducer<S, A, Void>
     ) -> some View {
-        modifier(StoreInjector(dependency: { _ in }) { dependency in
+        modifier(EnvironmentResolver(dependency: { _ in }) { dependency in
             Store(initialState: initialState(), reducer: reducer, dependency: dependency, removeDuplicates: ==)
         })
     }
 }
 
 // MARK: -
-struct StoreInjector<State: Sendable, Action, Dependency>: EnvironmentalModifier {
+struct EnvironmentResolver<State: Sendable, Action, Dependency>: EnvironmentalModifier {
     struct Modifier: ViewModifier {
         @StateObject var store: Store<State, Action, Dependency>
         let dependency: Dependency
