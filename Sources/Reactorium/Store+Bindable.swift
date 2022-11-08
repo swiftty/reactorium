@@ -5,16 +5,24 @@ extension Store {
     public struct Bindable {
         public struct Binder<V> {
             let store: Store
-            let keyPath: KeyPath<State, V>
+            let getter: (State) -> V
 
             @MainActor
             public func callAsFunction(action setter: @escaping (V) -> Action) -> Binding<V> {
-                store.binding(get: { $0[keyPath: keyPath] }, set: setter)
+                store.binding(get: getter, set: setter)
             }
 
             @MainActor
             public func callAsFunction(action: @escaping @autoclosure () -> Action) -> Binding<V> {
-                store.binding(get: { $0[keyPath: keyPath] }, set: { _ in action()})
+                store.binding(get: getter, set: { _ in action()})
+            }
+
+            @MainActor
+            var value: V { getter(store.state) }
+
+            @MainActor
+            func map<T>(_ transform: @escaping (V) -> T) -> Binder<T> {
+                Binder<T>(store: store, getter: { transform(getter($0)) })
             }
         }
 
@@ -32,7 +40,7 @@ extension Store {
             wrapped wrappedKeyPath: KeyPath<Store, State>,
             storage storageKeyPath: KeyPath<Store, Self>
         ) -> State {
-            instance.__state.value
+            instance.impl.state
         }
 
         // MARK: - projectedValue
@@ -41,7 +49,7 @@ extension Store {
             let store: Store
 
             public subscript <V> (dynamicMember keyPath: KeyPath<State, V>) -> Binder<V> {
-                Binder(store: store, keyPath: keyPath)
+                Binder(store: store, getter: { $0[keyPath: keyPath] })
             }
         }
 
