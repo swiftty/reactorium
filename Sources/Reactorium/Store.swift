@@ -1,4 +1,5 @@
 import Foundation
+import struct SwiftUI.Binding
 @preconcurrency import Combine
 
 @MainActor
@@ -31,6 +32,16 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         objectWillChange = impl.objectWillChange
     }
 
+    public init<PState: Sendable, PAction, PDependency>(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Dependency>,
+        dependency: Dependency
+    ) {
+        impl = ChildStore(binding: binder, action: action, reducer: reducer, dependency: dependency)
+        objectWillChange = impl.objectWillChange
+    }
+
     @inlinable
     @discardableResult
     public func send(_ newAction: Action) -> ActionTask {
@@ -40,6 +51,11 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
     @inlinable
     public func send(_ newAction: Action, while predicate: @escaping @Sendable (State) -> Bool) async {
         await impl.send(newAction, while: predicate)
+    }
+
+    @inlinable
+    public func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
+        impl.binding(get: getter, set: setter)
     }
 
     @usableFromInline

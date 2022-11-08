@@ -1,25 +1,6 @@
 import SwiftUI
 @preconcurrency import Combine
 
-@usableFromInline
-@MainActor
-protocol StoreImpl<State, Action, Dependency>: AnyObject {
-    associatedtype State: Sendable
-    associatedtype Action
-    associatedtype Dependency
-
-    var state: State { get }
-    var reducer: any Reducer<State, Action, Dependency> { get }
-    var dependency: Dependency { get set }
-
-    var objectWillChange: ObservableObjectPublisher { get }
-
-    func send(_ newAction: Action) -> Store<State, Action, Dependency>.ActionTask
-    func send(_ newAction: Action, while predicate: @escaping @Sendable (State) -> Bool) async
-
-    func yield(while predicate: @escaping @Sendable (State) -> Bool) async
-}
-
 @MainActor
 class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     var state: State { _state.value }
@@ -33,7 +14,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     private(set) var cancellables: AnyCancellable? = nil
 
     @usableFromInline
-    var bufferdActions: [Action] = []
+    var bufferdActions: [@MainActor (State, Tasks) -> Action] = []
 
     @usableFromInline
     var isSending = false
@@ -67,37 +48,16 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         }
     }
 
-
     // MARK: -
-    @inlinable
-    func send(_ newAction: Action) -> Store<State, Action, Dependency>.ActionTask {
-        let task = _send(newAction, from: nil)
-        return .init(task: task)
-    }
-
-    @inlinable
-    func send(_ newAction: Action, while predicate: @escaping @Sendable (State) -> Bool) async {
-        let task = send(newAction)
-        await Task.detached { [weak self] in
-            await withTaskCancellationHandler {
-                await self?.yield(while: predicate)
-            } onCancel: {
-                Task {
-                    await task.cancel()
-                }
-            }
-        }.value
-    }
-
     @usableFromInline
-    func _send(_ newAction: Action, from originalAction: Action?) -> Task<Void, Never>? {
+    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action, from originalAction: Action?) -> Task<Void, Never>? {
         bufferdActions.append(newAction)
         guard !isSending else { return nil }
 
         isSending = true
         var currentState = _state.value
 
-        var tasks: [Task<Void, Never>] = []
+        let tasks = Tasks()
         defer {
             bufferdActions.removeAll()
             _state.value = currentState
@@ -110,7 +70,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         while index < bufferdActions.endIndex {
             defer { index += 1 }
 
-            let newAction = bufferdActions[index]
+            let newAction = bufferdActions[index](currentState, tasks)
             let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
 
             switch effect.operation {
@@ -119,10 +79,9 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
 
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) { [weak self] in
-                    await runner(Effect.Send {
-                        if let task = self?._send($0, from: newAction) {
-                            tasks.append(task)
-                        }
+                    await runner(Effect.Send { action in
+                        let task = self?.send({ _, _ in action }, from: newAction)
+                        assert(task == nil)
                     })
                 })
             }
@@ -171,6 +130,16 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
             }
         }
     }
+
+    func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
+        ObservedObject(wrappedValue: self)
+            .projectedValue[get: .init(value: getter), set: .init(value: setter)]
+    }
+
+    private subscript <V> (get getter: HashableWrapper<(State) -> V>, set setter: HashableWrapper<(V) -> Action>) -> V {
+        get { getter.value(state) }
+        set { send(setter.value(newValue)) }
+    }
 }
 
 // MARK: -
@@ -195,4 +164,11 @@ actor YieldContext {
         cancellable?.cancel()
         cancellable = nil
     }
+}
+
+private struct HashableWrapper<V>: Hashable, @unchecked Sendable {
+    let value: V
+
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+    func hash(into hasher: inout Hasher) {}
 }
