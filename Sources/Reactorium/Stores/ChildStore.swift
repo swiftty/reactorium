@@ -32,7 +32,7 @@ class ChildStore<
     }
 
     @usableFromInline
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action, from originalAction: Action?) -> Task<Void, Never>? {
+    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>? {
         return parent.send({ [self] state, tasks in
             var state = scope(state)
             let newAction = newAction(state, tasks)
@@ -45,14 +45,14 @@ class ChildStore<
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) {
                     await runner(Effect.Send { action in
-                        let task = self.send({ _, _ in action }, from: newAction)
+                        let task = self.send({ _, _ in action })
                         assert(task == nil)
                     })
                 })
             }
 
             return action(state)
-        }, from: nil)
+        })
     }
 
     @usableFromInline

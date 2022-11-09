@@ -35,7 +35,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
 
     // MARK: -
     @usableFromInline
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action, from originalAction: Action?) -> Task<Void, Never>? {
+    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>? {
         bufferdActions.append(newAction)
         guard !isSending else { return nil }
 
@@ -72,7 +72,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) { [weak self] in
                     await runner(Effect.Send { action in
-                        let task = self?.send({ _, _ in action }, from: newAction)
+                        let task = self?.send({ _, _ in action })
                         assert(task == nil)
                     })
                 })

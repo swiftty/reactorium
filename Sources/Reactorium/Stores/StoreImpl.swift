@@ -14,7 +14,7 @@ protocol StoreImpl<State, Action, Dependency>: ObservableObject, Sendable {
 
     var objectWillChange: ObservableObjectPublisher { get }
 
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action, from originalAction: Action?) -> Task<Void, Never>?
+    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>?
 
     func yield(while predicate: @escaping @Sendable (State) -> Bool) async
 
@@ -25,7 +25,7 @@ extension StoreImpl {
     @usableFromInline
     @discardableResult
     func send(_ newAction: Action) -> Store<State, Action, Dependency>.ActionTask {
-        let task = send({ _, _ in newAction }, from: nil)
+        let task = send({ _, _ in newAction })
         return .init(task: task)
     }
 
