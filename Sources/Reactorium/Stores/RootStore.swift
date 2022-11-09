@@ -15,7 +15,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     private(set) var cancellables: AnyCancellable? = nil
 
     @usableFromInline
-    var bufferdActions: [@MainActor (State, Tasks) -> Action] = []
+    var bufferdActions: [Action] = []
 
     @usableFromInline
     var isSending = false
@@ -42,14 +42,14 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
 
     // MARK: -
     @usableFromInline
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>? {
+    func _send(_ newAction: Action) -> Task<Void, Never>? {
         bufferdActions.append(newAction)
         guard !isSending else { return nil }
 
         isSending = true
         var currentState = _state.value
 
-        let tasks = Tasks()
+        var tasks: [Task<Void, Never>] = []
         defer {
             bufferdActions.removeAll()
             let fire: Bool = {
@@ -69,7 +69,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         while index < bufferdActions.endIndex {
             defer { index += 1 }
 
-            let newAction = bufferdActions[index](currentState, tasks)
+            let newAction = bufferdActions[index]
             let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
 
             switch effect.operation {
@@ -79,7 +79,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) { [weak self] in
                     await runner(Effect.Send { action in
-                        let task = self?.send({ _, _ in action })
+                        let task = self?._send(action)
                         assert(task == nil)
                     })
                 })

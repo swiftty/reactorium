@@ -16,7 +16,7 @@ class ChildStore<
     let action: (State) -> PAction
 
     @usableFromInline
-    var bufferdActions: [@MainActor (State, Tasks) -> Action] = []
+    var bufferdActions: [Action] = []
 
     @usableFromInline
     var isSending = false
@@ -41,14 +41,14 @@ class ChildStore<
     }
 
     @usableFromInline
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>? {
+    func _send(_ newAction: Action) -> Task<Void, Never>? {
         bufferdActions.append(newAction)
         guard !isSending else { return nil }
 
         isSending = true
         var currentState = _state.wrappedValue
 
-        let tasks = Tasks()
+        var tasks: [Task<Void, Never>] = []
         defer {
             bufferdActions.removeAll()
             objectWillChange.send()
@@ -62,7 +62,7 @@ class ChildStore<
         while index < bufferdActions.endIndex {
             defer { index += 1 }
 
-            let newAction = bufferdActions[index](currentState, tasks)
+            let newAction = bufferdActions[index]
             let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
 
             switch effect.operation {
@@ -73,7 +73,7 @@ class ChildStore<
                 tasks.append(Task(priority: priority) { [weak self] in
                     guard !Task.isCancelled else { return }
                     await runner(Effect.Send { action in
-                        let task = self?.send({ _, _ in action })
+                        let task = self?._send(action)
                         assert(task == nil)
                     })
                 })

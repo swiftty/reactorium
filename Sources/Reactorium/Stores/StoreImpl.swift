@@ -14,7 +14,7 @@ protocol StoreImpl<State, Action, Dependency>: ObservableObject, Sendable {
 
     var objectWillChange: ObservableObjectPublisher { get }
 
-    func send(_ newAction: @escaping @MainActor (State, Tasks) -> Action) -> Task<Void, Never>?
+    func _send(_ newAction: Action) -> Task<Void, Never>?
 
     func yield(while predicate: @escaping @Sendable (State) -> Bool) async
 
@@ -25,7 +25,7 @@ extension StoreImpl {
     @usableFromInline
     @discardableResult
     func send(_ newAction: Action) -> Store<State, Action, Dependency>.ActionTask {
-        let task = send({ _, _ in newAction })
+        let task = _send(newAction)
         return .init(task: task)
     }
 
@@ -41,20 +41,5 @@ extension StoreImpl {
                 }
             }
         }.value
-    }
-}
-
-@usableFromInline
-@MainActor
-final class Tasks {
-    private var values: [Task<Void, Never>] = []
-
-    var isEmpty: Bool { values.isEmpty }
-    var startIndex: Int { values.startIndex }
-    var endIndex: Int { values.endIndex }
-    subscript (index: Int) -> Task<Void, Never> { values[index] }
-
-    func append(_ element: Task<Void, Never>) {
-        values.append(element)
     }
 }
