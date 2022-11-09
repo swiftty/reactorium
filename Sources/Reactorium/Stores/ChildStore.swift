@@ -16,12 +16,6 @@ class ChildStore<
     let scope: (PState) -> State
     let action: (State) -> PAction
 
-    @usableFromInline
-    var bufferdActions: [Action] = []
-
-    @usableFromInline
-    var isSending = false
-
     init(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
         action: @escaping (State) -> PAction,

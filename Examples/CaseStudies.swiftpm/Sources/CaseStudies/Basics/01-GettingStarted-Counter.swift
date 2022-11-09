@@ -31,7 +31,7 @@ struct CounterDemoView: View {
 
             }
             Section {
-                _CounterView()
+                CounterView()
                     .frame(maxWidth: .infinity)
             }
         }
@@ -40,7 +40,7 @@ struct CounterDemoView: View {
     }
 }
 
-private struct _CounterView: View {
+struct CounterView: View {
     @EnvironmentObject var store: StoreOf<Counter>
 
     var body: some View {
