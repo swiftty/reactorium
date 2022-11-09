@@ -66,7 +66,7 @@ extension View {
     @MainActor
     public func scope<
         PState: Sendable, PAction, PDependency,
-        State: Sendable, Action, Dependency
+        State: Sendable, Action
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
         action: @escaping (State) -> PAction,
@@ -105,7 +105,7 @@ extension View {
     @ViewBuilder
     public func scope<
         PState: Sendable, PAction, PDependency,
-        State: Sendable, Action, Dependency,
+        State: Sendable, Action,
         ElseContent: View
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
