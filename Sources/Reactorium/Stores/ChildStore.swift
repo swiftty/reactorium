@@ -6,13 +6,12 @@ class ChildStore<
     PState: Sendable, PAction, PDependency,
     State: Sendable, Action, Dependency
 >: StoreImpl {
-    var state: State { _state.wrappedValue }
+    var state: State { scope(parent.state) }
     let reducer: any Reducer<State, Action, Dependency>
     var dependency: Dependency
     let objectWillChange = ObservableObjectPublisher()
 
     let parent: any StoreImpl<PState, PAction, PDependency>
-    let _state: Binding<State>
     let scope: (PState) -> State
     let action: (State) -> PAction
 
@@ -26,7 +25,6 @@ class ChildStore<
         self.parent = binder.store.impl
         self.scope = scope
         self.action = action
-        self._state = binder(action: action)
         self.reducer = reducer
         self.dependency = dependency
     }
@@ -38,13 +36,16 @@ class ChildStore<
             let newAction = newAction(state, tasks)
             let effect = reducer.reduce(into: &state, action: newAction, dependency: dependency)
 
+            objectWillChange.send()
+
             switch effect.operation {
             case .none:
                 break
 
             case .task(let priority, let runner):
-                tasks.append(Task(priority: priority) {
+                tasks.append(Task(priority: priority) { [weak self] in
                     await runner(Effect.Send { action in
+                        guard let self else { return }
                         let task = self.send({ _, _ in action })
                         assert(task == nil)
                     })

@@ -65,26 +65,3 @@ struct OptionalBasicsView: View {
         .navigationTitle("Optional State")
     }
 }
-
-struct TogglingCounterView: View {
-    @State var toggleActive = false
-
-    var body: some View {
-        Group {
-            Toggle("Toggle", isOn: $toggleActive)
-            if toggleActive {
-                _CounterView()
-            }
-        }
-    }
-}
-
-struct _CounterView: View {
-    @State var value = 0
-
-    var body: some View {
-        Button("Increment \(value)") {
-            value += 1
-        }
-    }
-}
