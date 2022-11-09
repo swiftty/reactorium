@@ -20,6 +20,9 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     @usableFromInline
     var isSending = false
 
+    @usableFromInline
+    var runningTasks: Set<Task<Void, Never>> = []
+
     // MARK: -
     init(
         initialState: State,
@@ -31,6 +34,10 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         self.reducer = reducer
         self.dependency = dependency
         self.isDuplicate = isDuplicate
+    }
+
+    deinit {
+        runningTasks.forEach { $0.cancel() }
     }
 
     // MARK: -
@@ -81,7 +88,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
 
         guard !tasks.isEmpty else { return nil }
 
-        return Task.detached {
+        let task =  Task.detached {
             await withTaskCancellationHandler { @MainActor in
                 var i = tasks.startIndex
                 while i < tasks.endIndex {
@@ -98,6 +105,12 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
                 }
             }
         }
+        runningTasks.insert(task)
+        Task { [weak self] in
+            await task.value
+            self?.runningTasks.remove(task)
+        }
+        return task
     }
 
     // MARK: -
