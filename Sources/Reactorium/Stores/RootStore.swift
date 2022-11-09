@@ -9,6 +9,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     let objectWillChange = ObservableObjectPublisher()
 
     let _state: CurrentValueSubject<State, Never>
+    let isDuplicate: ((State, State) -> Bool)?
 
     @usableFromInline
     private(set) var cancellables: AnyCancellable? = nil
@@ -29,23 +30,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         _state = .init(initialState)
         self.reducer = reducer
         self.dependency = dependency
-
-        if let isDuplicate {
-            cancellables = _state
-                .dropFirst()
-                .removeDuplicates(by: isDuplicate)
-                .sink { [weak self] _ in
-                    assert(Thread.isMainThread)
-                    self?.objectWillChange.send()
-                }
-        } else {
-            cancellables = _state
-                .dropFirst()
-                .sink { [weak self] _ in
-                    assert(Thread.isMainThread)
-                    self?.objectWillChange.send()
-                }
-        }
+        self.isDuplicate = isDuplicate
     }
 
     // MARK: -
@@ -60,6 +45,13 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
         let tasks = Tasks()
         defer {
             bufferdActions.removeAll()
+            let fire: Bool = {
+                guard let isDuplicate else { return true }
+                return !isDuplicate(_state.value, currentState)
+            }()
+            if fire {
+                objectWillChange.send()
+            }
             _state.value = currentState
             isSending = false
             assert(bufferdActions.isEmpty)
