@@ -3,25 +3,29 @@ import SwiftUI
 
 @MainActor
 class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
-    var state: State { _state.value }
+    var state: State {
+        get { _state.value }
+        set {
+            let fire: Bool = {
+                guard let isDuplicate else { return true }
+                return !isDuplicate(_state.value, newValue)
+            }()
+            if fire {
+                objectWillChange.send()
+            }
+            _state.value = newValue
+        }
+    }
     let reducer: any Reducer<State, Action, Dependency>
     var dependency: Dependency
     let objectWillChange = ObservableObjectPublisher()
 
-    let _state: CurrentValueSubject<State, Never>
-    let isDuplicate: ((State, State) -> Bool)?
-
-    @usableFromInline
-    private(set) var cancellables: AnyCancellable? = nil
-
-    @usableFromInline
     var bufferdActions: [Action] = []
-
-    @usableFromInline
     var isSending = false
-
-    @usableFromInline
     var runningTasks: Set<Task<Void, Never>> = []
+
+    private let _state: CurrentValueSubject<State, Never>
+    private let isDuplicate: ((State, State) -> Bool)?
 
     // MARK: -
     init(
@@ -38,79 +42,6 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
 
     deinit {
         runningTasks.forEach { $0.cancel() }
-    }
-
-    // MARK: -
-    @usableFromInline
-    func _send(_ newAction: Action) -> Task<Void, Never>? {
-        bufferdActions.append(newAction)
-        guard !isSending else { return nil }
-
-        isSending = true
-        var currentState = _state.value
-
-        var tasks: [Task<Void, Never>] = []
-        defer {
-            bufferdActions.removeAll()
-            let fire: Bool = {
-                guard let isDuplicate else { return true }
-                return !isDuplicate(_state.value, currentState)
-            }()
-            if fire {
-                objectWillChange.send()
-            }
-            _state.value = currentState
-            isSending = false
-            assert(bufferdActions.isEmpty)
-        }
-
-        let dependency = dependency
-        var index = bufferdActions.startIndex
-        while index < bufferdActions.endIndex {
-            defer { index += 1 }
-
-            let newAction = bufferdActions[index]
-            let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
-
-            switch effect.operation {
-            case .none:
-                break
-
-            case .task(let priority, let runner):
-                tasks.append(Task(priority: priority) { [weak self] in
-                    await runner(Effect.Send { action in
-                        let task = self?._send(action)
-                        assert(task == nil)
-                    })
-                })
-            }
-        }
-
-        guard !tasks.isEmpty else { return nil }
-
-        let task =  Task.detached {
-            await withTaskCancellationHandler { @MainActor in
-                var i = tasks.startIndex
-                while i < tasks.endIndex {
-                    defer { i += 1 }
-                    await tasks[i].value
-                }
-            } onCancel: {
-                Task { @MainActor in
-                    var i = tasks.startIndex
-                    while i < tasks.endIndex {
-                        defer { i += 1 }
-                        tasks[i].cancel()
-                    }
-                }
-            }
-        }
-        runningTasks.insert(task)
-        Task { [weak self] in
-            await task.value
-            self?.runningTasks.remove(task)
-        }
-        return task
     }
 
     // MARK: -

@@ -6,23 +6,24 @@ class ChildStore<
     PState: Sendable, PAction, PDependency,
     State: Sendable, Action, Dependency
 >: StoreImpl {
-    var state: State { _state.wrappedValue }
+    var state: State {
+        get { _state.wrappedValue }
+        set {
+            objectWillChange.send()
+            _state.wrappedValue = newValue
+        }
+    }
     let reducer: any Reducer<State, Action, Dependency>
     var dependency: Dependency
     let objectWillChange = ObservableObjectPublisher()
 
-    var _state: Binding<State> { binder(action: action) }
-    let binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>
-    let action: (State) -> PAction
-
-    @usableFromInline
     var bufferdActions: [Action] = []
-
-    @usableFromInline
     var isSending = false
-
-    @usableFromInline
     var runningTasks: Set<Task<Void, Never>> = []
+
+    private var _state: Binding<State> { binder(action: action) }
+    private let binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>
+    private let action: (State) -> PAction
 
     init(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
@@ -38,73 +39,6 @@ class ChildStore<
 
     deinit {
         runningTasks.forEach { $0.cancel() }
-    }
-
-    @usableFromInline
-    func _send(_ newAction: Action) -> Task<Void, Never>? {
-        bufferdActions.append(newAction)
-        guard !isSending else { return nil }
-
-        isSending = true
-        var currentState = _state.wrappedValue
-
-        var tasks: [Task<Void, Never>] = []
-        defer {
-            bufferdActions.removeAll()
-            objectWillChange.send()
-            _state.wrappedValue = currentState
-            isSending = false
-            assert(bufferdActions.isEmpty)
-        }
-
-        let dependency = dependency
-        var index = bufferdActions.startIndex
-        while index < bufferdActions.endIndex {
-            defer { index += 1 }
-
-            let newAction = bufferdActions[index]
-            let effect = reducer.reduce(into: &currentState, action: newAction, dependency: dependency)
-
-            switch effect.operation {
-            case .none:
-                break
-
-            case .task(let priority, let runner):
-                tasks.append(Task(priority: priority) { [weak self] in
-                    guard !Task.isCancelled else { return }
-                    await runner(Effect.Send { action in
-                        let task = self?._send(action)
-                        assert(task == nil)
-                    })
-                })
-            }
-        }
-
-        guard !tasks.isEmpty else { return nil }
-
-        let task = Task.detached {
-            await withTaskCancellationHandler { @MainActor in
-                var i = tasks.startIndex
-                while i < tasks.endIndex {
-                    defer { i += 1 }
-                    await tasks[i].value
-                }
-            } onCancel: {
-                Task { @MainActor in
-                    var i = tasks.startIndex
-                    while i < tasks.endIndex {
-                        defer { i += 1 }
-                        tasks[i].cancel()
-                    }
-                }
-            }
-        }
-        runningTasks.insert(task)
-        Task { [weak self] in
-            await task.value
-            self?.runningTasks.remove(task)
-        }
-        return task
     }
 
     @usableFromInline
