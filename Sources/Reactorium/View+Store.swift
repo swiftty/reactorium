@@ -30,9 +30,7 @@ extension View {
         initialState: @escaping @autoclosure () -> S,
         reducer: some Reducer<S, A, Void>
     ) -> some View {
-        modifier(StateEnvironmentResolver(dependency: { _ in }) { dependency in
-            Store(initialState: initialState(), reducer: reducer, dependency: dependency)
-        })
+        store(initialState: initialState(), reducer: reducer, dependency: { _ in })
     }
 
     @MainActor
@@ -40,9 +38,7 @@ extension View {
         initialState: @escaping @autoclosure () -> S,
         reducer: some Reducer<S, A, Void>
     ) -> some View {
-        modifier(StateEnvironmentResolver(dependency: { _ in }) { dependency in
-            Store(initialState: initialState(), reducer: reducer, dependency: dependency, removeDuplicates: ==)
-        })
+        store(initialState: initialState(), reducer: reducer, dependency: { _ in })
     }
 }
 
@@ -72,9 +68,7 @@ extension View {
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Void>
     ) -> some View {
-        modifier(ObservedEnvironmentResolver(dependency: { _ in }) { dependency in
-            Store(binding: binder, action: action, reducer: reducer, dependency: dependency)
-        })
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in })
     }
 }
 
@@ -93,16 +87,13 @@ extension View {
         @ViewBuilder else elseContent: () -> ElseContent = { EmptyView() }
     ) -> some View {
         if let value = binder.value {
-            modifier(ObservedEnvironmentResolver(dependency: dependency) { dependency in
-                Store(binding: binder.map { $0 ?? value }, action: action, reducer: reducer, dependency: dependency)
-            })
+            scope(binding: binder.map { $0 ?? value }, action: action, reducer: reducer, dependency: dependency)
         } else {
             elseContent()
         }
     }
 
     @MainActor
-    @ViewBuilder
     public func scope<
         PState: Sendable, PAction, PDependency,
         State: Sendable, Action,
@@ -113,13 +104,7 @@ extension View {
         reducer: some Reducer<State, Action, Void>,
         @ViewBuilder else elseContent: () -> ElseContent = { EmptyView() }
     ) -> some View {
-        if let value = binder.value {
-            modifier(ObservedEnvironmentResolver(dependency: { _ in }) { dependency in
-                Store(binding: binder.map { $0 ?? value }, action: action, reducer: reducer, dependency: dependency)
-            })
-        } else {
-            elseContent()
-        }
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent)
     }
 }
 

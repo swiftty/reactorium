@@ -88,32 +88,3 @@ struct _CounterView: View {
         }
     }
 }
-
-struct Foo: View {
-    @State var count = 0
-
-    var body: some View {
-        HStack {
-            Button {
-                count -= 1
-            } label: {
-                Image(systemName: "minus")
-            }
-
-            Text("\(count)")
-                .monospacedDigit()
-
-            Button {
-                count += 1
-            } label: {
-                Image(systemName: "plus")
-            }
-        }
-        .onAppear {
-            print("onAppear")
-        }
-        .onDisappear {
-            print("onDisappear")
-        }
-    }
-}
