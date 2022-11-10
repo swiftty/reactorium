@@ -5,6 +5,7 @@ struct RootView: View {
     enum Examples {
         struct Basics: Hashable {}
         struct TwoCountersUsingScope: Hashable {}
+        struct TwoCounters: Hashable {}
         struct OptionalBasics: Hashable {}
         struct Animations: Hashable {}
     }
@@ -19,6 +20,10 @@ struct RootView: View {
 
                     NavigationLink(value: Examples.TwoCountersUsingScope()) {
                         Text("Scoped state")
+                    }
+
+                    NavigationLink(value: Examples.TwoCounters()) {
+                        Text("Separated state")
                     }
 
                     NavigationLink(value: Examples.OptionalBasics()) {
@@ -38,6 +43,9 @@ struct RootView: View {
             .navigationDestination(for: Examples.TwoCountersUsingScope.self) { _ in
                 TwoCountersUsingScopeView()
                     .store(initialState: .init(), reducer: TwoCountersUsingScope())
+            }
+            .navigationDestination(for: Examples.TwoCounters.self) { _ in
+                TwoCountersView()
             }
             .navigationDestination(for: Examples.OptionalBasics.self) { _ in
                 OptionalBasicsView()

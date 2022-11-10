@@ -2,9 +2,9 @@ import SwiftUI
 import Reactorium
 
 private let readme = """
-  This screen demonstrates how to take small features and compose them into bigger ones using reducer and the `.scope` modifier.
+This screen demonstrates how to take small features and compose them into bigger ones using reducer and the `.scope` modifier.
 
-  It reuses the domain of the counter screen and embeds it, twice, in a larger domain.
+It reuses the domain of the counter screen and embeds it, twice, in a larger domain.
 """
 
 struct TwoCountersUsingScope: Reducer {
