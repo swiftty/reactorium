@@ -9,7 +9,13 @@ class ChildStore<
     var state: State {
         get { _state.wrappedValue }
         set {
-            objectWillChange.send()
+            let fire: Bool = {
+                guard let isDuplicate else { return true }
+                return !isDuplicate(_state.wrappedValue, newValue)
+            }()
+            if fire {
+                objectWillChange.send()
+            }
             _state.wrappedValue = newValue
         }
     }
@@ -24,17 +30,20 @@ class ChildStore<
     private var _state: Binding<State> { binder(action: action) }
     private let binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>
     private let action: (State) -> PAction
+    private let isDuplicate: ((State, State) -> Bool)?
 
     init(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Dependency>,
-        dependency: Dependency
+        dependency: Dependency,
+        removeDuplicates isDuplicate: ((State, State) -> Bool)? = nil
     ) {
         self.binder = binder
         self.action = action
         self.reducer = reducer
         self.dependency = dependency
+        self.isDuplicate = isDuplicate
     }
 
     deinit {
@@ -56,6 +65,7 @@ class ChildStore<
     }
 }
 
-struct ScopeWrapper<Root, Value>: @unchecked Sendable {
+// MARK: -
+private struct ScopeWrapper<Root, Value>: @unchecked Sendable {
     let value: (Root) -> Value
 }

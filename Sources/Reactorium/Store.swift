@@ -28,7 +28,8 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         dependency: Dependency,
         removeDuplicates isDuplicate: ((State, State) -> Bool)? = nil
     ) {
-        impl = RootStore(initialState: initialState, reducer: reducer, dependency: dependency, removeDuplicates: isDuplicate)
+        impl = RootStore(initialState: initialState, reducer: reducer,
+                         dependency: dependency, removeDuplicates: isDuplicate)
         objectWillChange = impl.objectWillChange
     }
 
@@ -36,9 +37,11 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Dependency>,
-        dependency: Dependency
+        dependency: Dependency,
+        removeDuplicates isDuplicate: ((State, State) -> Bool)? = nil
     ) {
-        impl = ChildStore(binding: binder, action: action, reducer: reducer, dependency: dependency)
+        impl = ChildStore(binding: binder, action: action, reducer: reducer,
+                          dependency: dependency, removeDuplicates: isDuplicate)
         objectWillChange = impl.objectWillChange
     }
 
@@ -70,7 +73,18 @@ extension Store where State: Equatable {
         reducer: some Reducer<State, Action, Dependency>,
         dependency: Dependency
     ) {
-        self.init(initialState: initialState, reducer: reducer, dependency: dependency, removeDuplicates: ==)
+        self.init(initialState: initialState, reducer: reducer,
+                  dependency: dependency, removeDuplicates: ==)
+    }
+
+    public convenience init<PState: Sendable, PAction, PDependency>(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Dependency>,
+        dependency: Dependency
+    ) {
+        self.init(binding: binder, action: action, reducer: reducer,
+                  dependency: dependency, removeDuplicates: ==)
     }
 }
 
