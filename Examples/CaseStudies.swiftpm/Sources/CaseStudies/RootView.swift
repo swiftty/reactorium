@@ -8,6 +8,8 @@ struct RootView: View {
         struct TwoCounters: Hashable {}
         struct OptionalBasics: Hashable {}
         struct Animations: Hashable {}
+
+        struct EffectsBasics: Hashable {}
     }
 
     var body: some View {
@@ -34,6 +36,12 @@ struct RootView: View {
                         Text("Animations")
                     }
                 }
+
+                Section(header: Text("Effects")) {
+                    NavigationLink(value: Examples.EffectsBasics()) {
+                        Text("Basics")
+                    }
+                }
             }
             .navigationTitle("Case Studies")
             .navigationDestination(for: Examples.Basics.self) { _ in
@@ -54,6 +62,12 @@ struct RootView: View {
             .navigationDestination(for: Examples.Animations.self) { _ in
                 AnimationsView()
                     .store(initialState: .init(), reducer: Animations(), dependency: { env in .init(clock: env.clock) })
+            }
+            .navigationDestination(for: Examples.EffectsBasics.self) { _ in
+                EffectsBasicsView()
+                    .store(initialState: .init(), reducer: EffectsBasics(),
+                           dependency: EffectsBasics.Dependency.init)
+                    .environment(\.factClient, .live)
             }
         }
     }
