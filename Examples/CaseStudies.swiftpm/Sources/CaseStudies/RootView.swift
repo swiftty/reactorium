@@ -4,6 +4,7 @@ import Reactorium
 struct RootView: View {
     enum Examples {
         struct Basics: Hashable {}
+        struct TwoCountersUsingScope: Hashable {}
         struct OptionalBasics: Hashable {}
         struct Animations: Hashable {}
     }
@@ -16,8 +17,12 @@ struct RootView: View {
                         Text("Basics")
                     }
 
+                    NavigationLink(value: Examples.TwoCountersUsingScope()) {
+                        Text("Scoped state")
+                    }
+
                     NavigationLink(value: Examples.OptionalBasics()) {
-                        Text("Optional state")
+                        Text("Optional scoped state")
                     }
 
                     NavigationLink(value: Examples.Animations()) {
@@ -29,6 +34,10 @@ struct RootView: View {
             .navigationDestination(for: Examples.Basics.self) { _ in
                 CounterDemoView()
                     .store(initialState: .init(), reducer: Counter())
+            }
+            .navigationDestination(for: Examples.TwoCountersUsingScope.self) { _ in
+                TwoCountersUsingScopeView()
+                    .store(initialState: .init(), reducer: TwoCountersUsingScope())
             }
             .navigationDestination(for: Examples.OptionalBasics.self) { _ in
                 OptionalBasicsView()
