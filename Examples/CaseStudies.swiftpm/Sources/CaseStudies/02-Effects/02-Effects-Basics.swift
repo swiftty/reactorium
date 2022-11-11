@@ -74,7 +74,7 @@ struct EffectsBasics: Reducer {
 
 extension EffectsBasics.Dependency {
     init(environment: EnvironmentValues) {
-        clock = environment.clock
+        clock = environment.continuousClock
         factClient = environment.factClient
     }
 }
