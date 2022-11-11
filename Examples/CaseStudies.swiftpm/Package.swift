@@ -29,6 +29,17 @@ let package = Package(
                 .landscapeRight,
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
+            ],
+            capabilities: [
+                .appTransportSecurity(configuration: .init(
+                    exceptionDomains: [
+                        .init(
+                            domainName: "numbersapi.com",
+                            includesSubdomains: true,
+                            exceptionAllowsInsecureHTTPLoads: true
+                        )
+                    ]
+                ))
             ]
         )
     ],

@@ -4,8 +4,12 @@ import Reactorium
 struct RootView: View {
     enum Examples {
         struct Basics: Hashable {}
+        struct TwoCountersUsingScope: Hashable {}
+        struct TwoCounters: Hashable {}
         struct OptionalBasics: Hashable {}
         struct Animations: Hashable {}
+
+        struct EffectsBasics: Hashable {}
     }
 
     var body: some View {
@@ -16,12 +20,26 @@ struct RootView: View {
                         Text("Basics")
                     }
 
+                    NavigationLink(value: Examples.TwoCountersUsingScope()) {
+                        Text("Scoped state")
+                    }
+
+                    NavigationLink(value: Examples.TwoCounters()) {
+                        Text("Separated state")
+                    }
+
                     NavigationLink(value: Examples.OptionalBasics()) {
-                        Text("Optional state")
+                        Text("Optional scoped state")
                     }
 
                     NavigationLink(value: Examples.Animations()) {
                         Text("Animations")
+                    }
+                }
+
+                Section(header: Text("Effects")) {
+                    NavigationLink(value: Examples.EffectsBasics()) {
+                        Text("Basics")
                     }
                 }
             }
@@ -30,6 +48,13 @@ struct RootView: View {
                 CounterDemoView()
                     .store(initialState: .init(), reducer: Counter())
             }
+            .navigationDestination(for: Examples.TwoCountersUsingScope.self) { _ in
+                TwoCountersUsingScopeView()
+                    .store(initialState: .init(), reducer: TwoCountersUsingScope())
+            }
+            .navigationDestination(for: Examples.TwoCounters.self) { _ in
+                TwoCountersView()
+            }
             .navigationDestination(for: Examples.OptionalBasics.self) { _ in
                 OptionalBasicsView()
                     .store(initialState: .init(), reducer: OptionalCounter())
@@ -37,6 +62,12 @@ struct RootView: View {
             .navigationDestination(for: Examples.Animations.self) { _ in
                 AnimationsView()
                     .store(initialState: .init(), reducer: Animations(), dependency: { env in .init(clock: env.clock) })
+            }
+            .navigationDestination(for: Examples.EffectsBasics.self) { _ in
+                EffectsBasicsView()
+                    .store(initialState: .init(), reducer: EffectsBasics(),
+                           dependency: EffectsBasics.Dependency.init)
+                    .environment(\.factClient, .live)
             }
         }
     }

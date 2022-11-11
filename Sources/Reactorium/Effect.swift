@@ -32,7 +32,7 @@ extension Effect {
     public static func task(
         priority: TaskPriority? = nil,
         operation body: @escaping @Sendable @MainActor (Send) async throws -> Void,
-        catch errorBody: @escaping @Sendable (Error, Send) async -> Void
+        catch errorBody: @escaping @Sendable @MainActor (Error, Send) async -> Void
     ) -> Self {
         .init(operation: .task(priority) { send in
             do {
