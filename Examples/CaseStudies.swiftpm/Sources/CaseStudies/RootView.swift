@@ -11,6 +11,7 @@ struct RootView: View {
 
         struct EffectsBasics: Hashable {}
         struct LongLivingEffects: Hashable {}
+        struct Refreshable: Hashable {}
     }
 
     var body: some View {
@@ -45,6 +46,10 @@ struct RootView: View {
 
                     NavigationLink(value: Examples.LongLivingEffects()) {
                         Text("Long-living effects")
+                    }
+
+                    NavigationLink(value: Examples.Refreshable()) {
+                        Text("Refreshable")
                     }
                 }
             }
@@ -85,6 +90,12 @@ struct RootView: View {
                             .map { _ in }
                         )
                     })
+            }
+            .navigationDestination(for: Examples.Refreshable.self) { _ in
+                RefreshableView()
+                    .store(initialState: .init(), reducer: Refreshable(),
+                           dependency: Refreshable.Dependency.init)
+                    .environment(\.factClient, .live)
             }
         }
     }
