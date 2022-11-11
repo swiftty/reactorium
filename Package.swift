@@ -13,11 +13,15 @@ let package = Package(
             name: "Reactorium",
             targets: ["Reactorium"]),
     ],
-    dependencies: [],
+    dependencies: [
+        .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "0.6.0")
+    ],
     targets: [
         .target(
             name: "Reactorium",
-            dependencies: []),
+            dependencies: [
+                .product(name: "CustomDump", package: "swift-custom-dump")
+            ]),
         .testTarget(
             name: "ReactoriumTests",
             dependencies: ["Reactorium"]),
