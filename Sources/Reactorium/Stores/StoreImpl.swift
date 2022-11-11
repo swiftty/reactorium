@@ -76,8 +76,9 @@ extension StoreImpl {
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) { [weak self] in
                     await runner(Effect.Send { action in
-                        let task = self?._send(action)
-                        assert(task == nil)
+                        if let task = self?._send(action) {
+                            tasks.append(task)
+                        }
                     })
                 })
             }
