@@ -1,5 +1,6 @@
 import Foundation
 import struct SwiftUI.Binding
+import struct SwiftUI.ObservedObject
 @preconcurrency import Combine
 
 @MainActor
@@ -58,12 +59,19 @@ public class Store<State: Sendable, Action, Dependency>: ObservableObject {
 
     @inlinable
     public func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
-        impl.binding(get: getter, set: setter)
+        ObservedObject(wrappedValue: self)
+            .projectedValue[get: .init(value: getter), set: .init(value: setter)]
     }
 
     @usableFromInline
     func yield(while predicate: @escaping @Sendable (State) -> Bool) async {
         await impl.yield(while: predicate)
+    }
+
+    @usableFromInline
+    subscript <V> (get getter: HashableWrapper<(State) -> V>, set setter: HashableWrapper<(V) -> Action>) -> V {
+        get { getter.value(state) }
+        set { send(setter.value(newValue)) }
     }
 }
 
@@ -117,3 +125,20 @@ extension Store {
 }
 
 public typealias StoreOf<R: Reducer> = Store<R.State, R.Action, R.Dependency>
+
+// MARK: -
+@usableFromInline
+struct HashableWrapper<V>: Hashable, @unchecked Sendable {
+    let value: V
+
+    @usableFromInline
+    init(value: V) {
+        self.value = value
+    }
+
+    @usableFromInline
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+
+    @usableFromInline
+    func hash(into hasher: inout Hasher) {}
+}

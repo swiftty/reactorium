@@ -66,16 +66,6 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
             }
         }
     }
-
-    func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
-        ObservedObject(wrappedValue: self)
-            .projectedValue[get: .init(value: getter), set: .init(value: setter)]
-    }
-
-    private subscript <V> (get getter: HashableWrapper<(State) -> V>, set setter: HashableWrapper<(V) -> Action>) -> V {
-        get { getter.value(state) }
-        set { send(setter.value(newValue)) }
-    }
 }
 
 // MARK: -
@@ -100,11 +90,4 @@ actor YieldContext {
         cancellable?.cancel()
         cancellable = nil
     }
-}
-
-private struct HashableWrapper<V>: Hashable, @unchecked Sendable {
-    let value: V
-
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
-    func hash(into hasher: inout Hasher) {}
 }
