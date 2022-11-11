@@ -23,7 +23,7 @@ extension Effect {
     @inlinable
     public static func task(
         priority: TaskPriority? = nil,
-        operation body: @escaping @Sendable @MainActor (Send) async -> Void
+        operation body: @escaping @Sendable (Send) async -> Void
     ) -> Self {
         .init(operation: .task(priority, body: body))
     }
@@ -31,8 +31,8 @@ extension Effect {
     @inlinable
     public static func task(
         priority: TaskPriority? = nil,
-        operation body: @escaping @Sendable @MainActor (Send) async throws -> Void,
-        catch errorBody: @escaping @Sendable @MainActor (Error, Send) async -> Void
+        operation body: @escaping @Sendable (Send) async throws -> Void,
+        catch errorBody: @escaping @Sendable (Error, Send) async -> Void
     ) -> Self {
         .init(operation: .task(priority) { send in
             do {
@@ -51,4 +51,6 @@ extension Effect: ExpressibleByNilLiteral {
     public init(nilLiteral: ()) {
         self.init(operation: .none)
     }
+
+    public static var none: Self { nil }
 }

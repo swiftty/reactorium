@@ -20,7 +20,7 @@ struct LongLivingEffects: Reducer {
         case .task:
             return .task { send in
                 for await _ in await dependency.screenshots() {
-                    send(.userDidTakeScreenshotNotification)
+                    await send(.userDidTakeScreenshotNotification)
                 }
             }
 

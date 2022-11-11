@@ -31,7 +31,7 @@ struct Animations: Reducer {
         case .rainbowButtonTapped:
             return .task { send in
                 for color in [Color.red, .blue, .green, .orange, .pink, .purple, .yellow, .black] {
-                    send(.setColor(color), animation: .linear)
+                    await send(.setColor(color), animation: .linear)
                     try? await dependency.clock.sleep(for: .seconds(1))
                 }
             }

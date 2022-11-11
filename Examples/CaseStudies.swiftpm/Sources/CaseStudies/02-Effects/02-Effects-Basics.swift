@@ -31,7 +31,7 @@ struct EffectsBasics: Reducer {
             return (
                 state.count >= 0 ? nil : Effect.task { send in
                     try? await dependency.clock.sleep(for: .seconds(1))
-                    send(.decrementDelayResponse)
+                    await send(.decrementDelayResponse)
                 }
             )
             .cancellable(id: DelayID.self)
@@ -55,9 +55,9 @@ struct EffectsBasics: Reducer {
             state.isNumberFactRequestInFlight = true
             state.numberFact = nil
             return .task { [count = state.count] send in
-                send(try await .numberFactResponse(.success(dependency.factClient.fetch(count))))
+                try await send(.numberFactResponse(.success(dependency.factClient.fetch(count))))
             } catch: { error, send in
-                send(.numberFactResponse(.failure(error)))
+                await send(.numberFactResponse(.failure(error)))
             }
 
         case .numberFactResponse(.success(let response)):
@@ -123,7 +123,7 @@ struct EffectsBasicsView: View {
 
             Section {
                 Button("Number facts provided by numbersapi.com") {
-                    openURL(URL(string: "http:// ")!)
+                    openURL(URL(string: "http://numbersapi.com")!)
                 }
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity)

@@ -51,7 +51,7 @@ struct Refreshable: Reducer {
             return .task { [count = state.count] send in
                 try await send(.factResponse(.success(dependency.factClient.fetch(count))))
             } catch: { error, send in
-                send(.factResponse(.failure(error)))
+                await send(.factResponse(.failure(error)))
             }
             .animation()
             .cancellable(id: FactRequestID.self)
