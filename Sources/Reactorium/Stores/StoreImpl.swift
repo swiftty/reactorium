@@ -19,8 +19,6 @@ protocol StoreImpl<State, Action, Dependency>: ObservableObject, Sendable {
     var runningTasks: Set<Task<Void, Never>> { get set }
 
     func yield(while predicate: @escaping @Sendable (State) -> Bool) async
-
-    func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V>
 }
 
 extension StoreImpl {

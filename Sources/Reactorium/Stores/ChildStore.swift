@@ -55,14 +55,6 @@ class ChildStore<
         let scope = ScopeWrapper(value: binder.getter)
         await binder.store.yield(while: { predicate(scope.value($0)) })
     }
-
-    func binding<V>(get getter: @escaping (State) -> V, set setter: @escaping (V) -> Action) -> Binding<V> {
-        Binding {
-            getter(self.state)
-        } set: { newValue in
-            self.send(setter(newValue))
-        }
-    }
 }
 
 // MARK: -
