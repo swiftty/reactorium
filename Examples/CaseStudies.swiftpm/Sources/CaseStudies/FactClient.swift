@@ -8,7 +8,7 @@ extension FactClient {
     static var live: Self {
         self.init(
             fetch: { number in
-                try await Task.sleep(for: .seconds(1))
+                try await Task.sleep(for: .seconds(3))
                 let (data, _) = try await URLSession.shared
                   .data(from: URL(string: "http://numbersapi.com/\(number)/trivia")!)
                 return String(decoding: data, as: UTF8.self)

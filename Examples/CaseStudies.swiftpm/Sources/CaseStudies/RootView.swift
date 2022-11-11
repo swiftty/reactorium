@@ -10,6 +10,8 @@ struct RootView: View {
         struct Animations: Hashable {}
 
         struct EffectsBasics: Hashable {}
+        struct LongLivingEffects: Hashable {}
+        struct Refreshable: Hashable {}
     }
 
     var body: some View {
@@ -41,6 +43,14 @@ struct RootView: View {
                     NavigationLink(value: Examples.EffectsBasics()) {
                         Text("Basics")
                     }
+
+                    NavigationLink(value: Examples.LongLivingEffects()) {
+                        Text("Long-living effects")
+                    }
+
+                    NavigationLink(value: Examples.Refreshable()) {
+                        Text("Refreshable")
+                    }
                 }
             }
             .navigationTitle("Case Studies")
@@ -68,6 +78,46 @@ struct RootView: View {
                     .store(initialState: .init(), reducer: EffectsBasics(),
                            dependency: EffectsBasics.Dependency.init)
                     .environment(\.factClient, .live)
+            }
+            .navigationDestination(for: Examples.LongLivingEffects.self) { _ in
+                LongLivingEffectsView()
+                    .store(initialState: .init(), reducer: LongLivingEffects(),
+                           dependency: LongLivingEffects.Dependency.init)
+                    .environment(\.screenshots, {
+                        AsyncStream(NotificationCenter
+                            .default
+                            .notifications(named: UIApplication.userDidTakeScreenshotNotification)
+                            .map { _ in }
+                        )
+                    })
+            }
+            .navigationDestination(for: Examples.Refreshable.self) { _ in
+                RefreshableView()
+                    .store(initialState: .init(), reducer: Refreshable(),
+                           dependency: Refreshable.Dependency.init)
+                    .environment(\.factClient, .live)
+            }
+        }
+    }
+}
+
+// MARK: -
+extension AsyncStream {
+    public init<Seq: AsyncSequence>(
+        _ seq: Seq,
+        bufferingPolicy limit: Continuation.BufferingPolicy = .unbounded
+    ) where Seq.Element == Element {
+        self.init { continuation in
+            let task = Task {
+                do {
+                    for try await element in seq {
+                        continuation.yield(element)
+                    }
+                } catch {}
+                continuation.finish()
+            }
+            continuation.onTermination = { _ in
+                task.cancel()
             }
         }
     }
