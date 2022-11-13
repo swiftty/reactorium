@@ -14,7 +14,7 @@ extension Effect {
 @MainActor
 @available(iOS 16, macOS 13, tvOS 16, watchOS 9, *)
 final class TestStoreTests: XCTestCase {
-    func testEffectConcatenation() async {
+    func test_effect_concatenation() async {
         struct MyReducer: Reducer {
             struct State {}
             enum Action {
@@ -66,5 +66,82 @@ final class TestStoreTests: XCTestCase {
         await store.receive(.c3)
 
         await store.send(.d)
+    }
+
+    func test_async() async {
+        struct MyReducer: Reducer {
+            typealias State = Int
+            enum Action {
+                case tap, response(Int)
+            }
+            func reduce(into state: inout Int, action: Action, dependency: ()) -> Effect<Action> {
+                switch action {
+                case .tap:
+                    return .task { send in
+                        await send(.response(42))
+                    }
+
+                case .response(let number):
+                    state = number
+                    return nil
+                }
+            }
+        }
+
+        let store = TestStore(initialState: 0, reducer: MyReducer())
+
+        await store.send(.tap)
+        await store.receive(.response(42)) {
+            $0 = 42
+        }
+    }
+
+    func test_expected_state_equality() async {
+        struct MyReducer: Reducer {
+            struct State {
+                var count = 0
+                var isChanging = false
+            }
+            enum Action {
+                case increment
+                case changed(from: Int, to: Int)
+            }
+
+            func reduce(into state: inout State, action: Action, dependency: ()) -> Effect<Action> {
+                switch action {
+                case .increment:
+                    state.isChanging = true
+                    return .task { [count = state.count] send in
+                        await send(.changed(from: count, to: count + 1))
+                    }
+
+                case .changed(let from, let to):
+                    state.isChanging = false
+                    if state.count == from {
+                        state.count = to
+                    }
+                    return nil
+                }
+            }
+        }
+
+        let store = TestStore(initialState: .init(), reducer: MyReducer())
+
+        await store.send(.increment) {
+            $0.isChanging = true
+        }
+        await store.receive(.changed(from: 0, to: 1)) {
+            $0.isChanging = false
+            $0.count = 1
+        }
+
+        XCTExpectFailure("send/receive expects right state after mutation")
+        await store.send(.increment) {
+            $0.isChanging = false
+        }
+        await store.receive(.changed(from: 1, to: 2)) {
+            $0.isChanging = true
+            $0.count = 1100
+        }
     }
 }

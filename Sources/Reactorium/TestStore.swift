@@ -33,6 +33,15 @@ public final class TestStore<State: Sendable, Action: Sendable, Dependency> {
         self.line = line
     }
 
+    public convenience init(
+        initialState: State,
+        reducer: some Reducer<State, Action, Dependency>,
+        file: StaticString = #file,
+        line: UInt = #line
+    ) where Dependency == Void {
+        self.init(initialState: initialState, reducer: reducer, dependency: (), file: file, line: line)
+    }
+
     deinit {
         reducer.checkCompleted(file: file, line: line)
     }
