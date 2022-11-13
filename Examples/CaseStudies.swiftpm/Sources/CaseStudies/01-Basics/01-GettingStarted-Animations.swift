@@ -117,7 +117,7 @@ struct AnimationsView_Previews: PreviewProvider {
                 .store(
                     initialState: .init(),
                     reducer: Animations(),
-                    dependency: { env in .init(clock: env.clock) }
+                    dependency: { env in .init(clock: env.continuousClock) }
                 )
         }
     }

@@ -71,7 +71,7 @@ struct RootView: View {
             }
             .navigationDestination(for: Examples.Animations.self) { _ in
                 AnimationsView()
-                    .store(initialState: .init(), reducer: Animations(), dependency: { env in .init(clock: env.clock) })
+                    .store(initialState: .init(), reducer: Animations(), dependency: { env in .init(clock: env.continuousClock) })
             }
             .navigationDestination(for: Examples.EffectsBasics.self) { _ in
                 EffectsBasicsView()
