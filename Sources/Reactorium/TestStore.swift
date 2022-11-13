@@ -8,8 +8,10 @@ public typealias TestStoreOf<R: Reducer> = TestStore<R.State, R.Action, R.Depend
 @MainActor
 public final class TestStore<State: Sendable, Action: Sendable, Dependency> {
     public var state: State { reducer.state }
-    public var dependency: Dependency
-
+    public var dependency: Dependency {
+        get { store.dependency }
+        set { store.dependency = newValue }
+    }
     public var timeout: UInt64
 
     let reducer: TestReducer<State, Action, Dependency>
@@ -26,7 +28,6 @@ public final class TestStore<State: Sendable, Action: Sendable, Dependency> {
         line: UInt = #line
     ) {
         self.reducer = TestReducer(reducer, initialState: initialState)
-        self.dependency = dependency
         self.store = Store(initialState: initialState, reducer: self.reducer, dependency: dependency)
         self.timeout = 100 * NSEC_PER_MSEC
         self.file = file
