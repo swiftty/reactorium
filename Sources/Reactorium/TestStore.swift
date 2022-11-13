@@ -66,9 +66,8 @@ extension TestStore {
             Unhandled actions: \(actions)
             """, file: file, line: line)
         }
-        var expectedState = state
-        let previousState = reducer.state
 
+        var expectedState = state
         let task = store.send(.init(origin: .send(action), file: file, line: line))
 
         for await _ in reducer.effectDidSubscribe.stream {
@@ -77,9 +76,6 @@ extension TestStore {
 
         do {
             let currentState = state
-            reducer.state = previousState
-            defer { reducer.state = currentState }
-
             try expectedStateShouldMatch(expected: &expectedState, actual: currentState, modify: updateExpectingResult,
                                          file: file, line: line)
         } catch {
@@ -547,12 +543,5 @@ private extension Duration {
     var nanoseconds: UInt64 {
         UInt64(components.seconds) * NSEC_PER_SEC
         + UInt64(components.attoseconds) / 1_000_000_000
-    }
-}
-
-private extension String {
-    func indent(by indent: Int) -> String {
-        let indent = String(repeating: " ", count: indent)
-        return indent + components(separatedBy: "\n").joined(separator: "\n\(indent)")
     }
 }
