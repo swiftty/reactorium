@@ -25,7 +25,7 @@ extension StoreImpl {
     @usableFromInline
     @discardableResult
     func send(_ newAction: Action) -> Store<State, Action, Dependency>.ActionTask {
-        let task = _send(newAction)
+        let task = send(newAction, from: nil)
         return .init(task: task)
     }
 
@@ -46,7 +46,7 @@ extension StoreImpl {
 
 extension StoreImpl {
     @usableFromInline
-    func _send(_ newAction: Action) -> Task<Void, Never>? {
+    func send(_ newAction: Action, from originalAction: Action?) -> Task<Void, Never>? {
         bufferdActions.append(newAction)
         guard !isSending else { return nil }
 
@@ -76,7 +76,7 @@ extension StoreImpl {
             case .task(let priority, let runner):
                 tasks.append(Task(priority: priority) { [weak self] in
                     await runner(Effect.Send { action in
-                        if let task = self?._send(action) {
+                        if let task = self?.send(action, from: newAction) {
                             tasks.append(task)
                         }
                     })

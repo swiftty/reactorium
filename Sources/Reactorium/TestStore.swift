@@ -1,6 +1,6 @@
 import Foundation
 import CustomDump
-@preconcurrency import Combine
+import Combine
 import XCTestDynamicOverlay
 
 public typealias TestStoreOf<R: Reducer> = TestStore<R.State, R.Action, R.Dependency>
@@ -97,12 +97,6 @@ extension TestStore {
         }
 
         if let diff = diff(expected, actual, format: .proportional) {
-            let diff = """
-            \(diff.indent(by: 4))
-
-            (Expected: -, Actual: +)
-            """
-
             let message = (
                 modify != nil
                 ? "A state change does not match expectation"
@@ -111,7 +105,9 @@ extension TestStore {
             XCTFail("""
             \(message): …
 
-            \(diff)
+            \(diff.indent(by: 4))
+
+            (Expected: -, Actual: +)
             """, file: file, line: line)
         } else if diff(expected, current) == nil, modify != nil {
             XCTFail("""
@@ -407,7 +403,7 @@ public struct TestStoreTask: Hashable, Sendable {
 }
 
 // MARK: - TestReducer
-class TestReducer<State, Action: Sendable, Dependency>: Reducer {
+final class TestReducer<State, Action: Sendable, Dependency>: Reducer {
     let base: any Reducer<State, Action, Dependency>
     let effectDidSubscribe = AsyncStream<Void>.withContinuation()
     var state: State
@@ -443,25 +439,21 @@ class TestReducer<State, Action: Sendable, Dependency>: Reducer {
 
         case .task:
             let effect = LongLivingEffect(file: action.file, line: action.line)
-            return Effect.publisher(
-                effects
-                    .handleEvents(
-                        receiveSubscription: { [effectDidSubscribe, weak self] _ in
-                            self?.inFlightEffects.insert(effect)
-                            Task {
-                                await Task._yield()
-                                effectDidSubscribe.continuation.yield()
-                            }
-                        },
-                        receiveCompletion: { [weak self] _ in
-                            self?.inFlightEffects.remove(effect)
-                        },
-                        receiveCancel: { [weak self] in
-                            self?.inFlightEffects.remove(effect)
+            return effects
+                .map { body in
+                    return { [weak self] send in
+                        self?.inFlightEffects.insert(effect)
+                        Task {
+                            await Task._yield()
+                            self?.effectDidSubscribe.continuation.yield()
                         }
-                    )
-                    .map { .init(origin: .receive($0), file: action.file, line: action.line) }
-            )
+
+                        await body(send)
+
+                        self?.inFlightEffects.remove(effect)
+                    }
+                }
+                .map { .init(origin: .receive($0), file: action.file, line: action.line) }
         }
     }
 
@@ -552,13 +544,5 @@ private extension String {
     func indent(by indent: Int) -> String {
         let indent = String(repeating: " ", count: indent)
         return indent + components(separatedBy: "\n").joined(separator: "\n\(indent)")
-    }
-}
-
-private extension Task<Never, Never> {
-    static func _yield() async {
-        await Task<Void, Never>.detached(priority: .background) {
-            await Task.yield()
-        }.value
     }
 }

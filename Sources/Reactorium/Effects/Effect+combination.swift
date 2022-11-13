@@ -66,6 +66,9 @@ extension Effect {
                         }
                         guard added else { break }
                         await group.next()
+
+                        // Ensure that tasks are executed using depth-first search as much as possible.
+                        await Task._yield()
                     }
                 }
             })
