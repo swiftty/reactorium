@@ -1,17 +1,19 @@
-# reactorium
-highly inspired by [The Composable Architecture (TCA)](https://github.com/pointfreeco/swift-composable-architecture).
+[![test](https://github.com/swiftty/reactorium/actions/workflows/test.yml/badge.svg)](https://github.com/swiftty/reactorium/actions/workflows/test.yml)
+
+# REACTORIUM
+
+Highly inspired by [The Composable Architecture (TCA)](https://github.com/pointfreeco/swift-composable-architecture).
 
 <br />
 <br />
 
-## # Concept
+## # CONCEPT
 
 A Lightwieght TCA for SwiftUI friendly.
 
 <br />
-<br />
 
-## # Installation
+## # INSTALLATION
 
 **Under Development**
 
@@ -22,9 +24,8 @@ dependencies: [
 ```
 
 <br />
-<br />
 
-## # Usage
+## # USAGE
 
 - define Reducer
 
@@ -96,5 +97,4 @@ struct MyApp: App {
 }
 ```
 
-<br />
 <br />

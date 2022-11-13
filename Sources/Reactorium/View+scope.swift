@@ -182,6 +182,33 @@ extension SystemViewRepresentable {
     }
 }
 
+#elseif canImport(AppKit)
+import AppKit
+
+@MainActor
+private protocol SystemViewRepresentable: NSViewRepresentable {
+    typealias SystemView = NSView
+    associatedtype ViewType: NSView
+
+    func makeView(context: Context) -> ViewType
+    func updateView(_ view: ViewType, context: Context)
+    static func dismantleView(_ view: ViewType, coordinator: Coordinator)
+}
+
+extension SystemViewRepresentable {
+    func makeNSView(context: Context) -> ViewType {
+        makeView(context: context)
+    }
+
+    func updateNSView(_ nsView: ViewType, context: Context) {
+        updateView(nsView, context: context)
+    }
+
+    static func dismantleNSView(_ nsView: ViewType, coordinator: Coordinator) {
+        dismantleView(nsView, coordinator: coordinator)
+    }
+}
+
 #else
 #error("SystemViewRepresentable is not defined")
 #endif

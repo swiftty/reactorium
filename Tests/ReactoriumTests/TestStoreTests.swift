@@ -12,9 +12,10 @@ extension Effect {
 }
 
 @MainActor
-@available(iOS 16, macOS 13, tvOS 16, watchOS 9, *)
 final class TestStoreTests: XCTestCase {
     func test_effect_concatenation() async {
+        guard #available(iOS 16, macOS 13, tvOS 16, watchOS 9, *) else { return }
+
         struct MyReducer: Reducer {
             struct State {}
             enum Action {

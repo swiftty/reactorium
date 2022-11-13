@@ -47,7 +47,7 @@ class RootStore<State: Sendable, Action, Dependency>: StoreImpl {
     // MARK: -
     @usableFromInline
     func yield(while predicate: @escaping @Sendable (State) -> Bool) async {
-        if #available(iOS 15, macOS 12, *) {
+        if #available(macOS 12, iOS 15, tvOS 15, *) {
             for await state in _state.values where !predicate(state) {
                 return
             }
