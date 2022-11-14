@@ -112,7 +112,7 @@ extension TestStore {
         file: StaticString = #file,
         line: UInt = #line
     ) async {
-        await testState.checkReceive(expectedAction, timeout: timeout, expecting: updateExpectingResult,
+        await testState.checkReceive(expectedAction, timeout: nanoseconds, expecting: updateExpectingResult,
                                      file: file, line: line)
     }
 }
@@ -133,7 +133,7 @@ extension TestStore {
         file: StaticString = #file,
         line: UInt = #line
     ) async {
-        await testState.checkRemainingInFlightEffects(timeout: timeout, file: file, line: line)
+        await testState.checkRemainingInFlightEffects(timeout: nanoseconds, file: file, line: line)
     }
 }
 
