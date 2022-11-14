@@ -46,10 +46,10 @@ public final class TestStore<State: Sendable, Action: Sendable, Dependency> {
                 return nil
 
             case .task:
-                let effect = TestState<State, Action>.LongLivingEffect(file: action.file, line: action.line)
                 return effects.map { body in
                     return { send in
-                        testState.inFlightEffects.insert(effect)
+                        let key = TestState<State, Action>.LongLivingEffect(file: action.file, line: action.line)
+                        testState.inFlightEffects.insert(key)
                         Task {
                             await Task._yield()
                             testState.effectDidSubscribe.continuation.yield()
@@ -57,7 +57,7 @@ public final class TestStore<State: Sendable, Action: Sendable, Dependency> {
 
                         await body(send)
 
-                        testState.inFlightEffects.remove(effect)
+                        testState.inFlightEffects.remove(key)
                     }
                 }
                 .map { .init(origin: .receive($0), file: action.file, line: action.line) }
@@ -86,8 +86,11 @@ extension TestStore {
         file: StaticString = #file,
         line: UInt = #line
     ) async -> TestStoreTask {
-        await testState.checkAction(action, expecting: updateExpectingResult, step: { store.send($0).task },
-                                    file: file, line: line)
+        await testState.checkAction(
+            store.send(.init(origin: .send(action), file: file, line: line)).task,
+            expecting: updateExpectingResult,
+            file: file, line: line
+        )
     }
 }
 
@@ -112,8 +115,12 @@ extension TestStore {
         file: StaticString = #file,
         line: UInt = #line
     ) async {
-        await testState.checkReceive(expectedAction, timeout: nanoseconds, expecting: updateExpectingResult,
-                                     file: file, line: line)
+        await testState.checkReceive(
+            expectedAction,
+            timeout: nanoseconds,
+            expecting: updateExpectingResult,
+            file: file, line: line
+        )
     }
 }
 
@@ -321,10 +328,9 @@ final class TestState<State: Sendable, Action: Sendable> {
 }
 
 extension TestState {
-    func checkAction<Dependency>(
-        _ action: Action,
+    func checkAction(
+        _ send: @autoclosure () -> Task<Void, Never>?,
         expecting: ((inout State) throws -> Void)?,
-        step: (TestHookReducer<State, Action, Dependency>.Action) -> Task<Void, Never>?,
         file: StaticString,
         line: UInt
     ) async -> TestStoreTask {
@@ -340,7 +346,7 @@ extension TestState {
         }
 
         var expectedState = state
-        let task = step(.init(origin: .send(action), file: file, line: line))
+        let task = send()
 
         for await _ in effectDidSubscribe.stream {
             break
