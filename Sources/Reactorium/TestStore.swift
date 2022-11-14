@@ -86,7 +86,7 @@ extension TestStore {
         file: StaticString = #file,
         line: UInt = #line
     ) async -> TestStoreTask {
-        await testState.checkAction(action, expecting: updateExpectingResult, step: { store.send($0) },
+        await testState.checkAction(action, expecting: updateExpectingResult, step: { store.send($0).task },
                                     file: file, line: line)
     }
 }
@@ -324,7 +324,7 @@ extension TestState {
     func checkAction<Dependency>(
         _ action: Action,
         expecting: ((inout State) throws -> Void)?,
-        step: (TestHookReducer<State, Action, Dependency>.Action) -> Store<State, TestHookReducer<State, Action, Dependency>.Action, Dependency>.ActionTask,
+        step: (TestHookReducer<State, Action, Dependency>.Action) -> Task<Void, Never>?,
         file: StaticString,
         line: UInt
     ) async -> TestStoreTask {
@@ -359,7 +359,7 @@ extension TestState {
         }
 
         await Task._yield()
-        return .init(rawValue: task.task, timeout: timeout)
+        return .init(rawValue: task, timeout: timeout)
     }
 
     private func expectedStateShouldMatch(
