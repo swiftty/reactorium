@@ -28,6 +28,34 @@ extension View {
     ) -> some View {
         scope(binding: binder, action: action, reducer: reducer, dependency: { _ in })
     }
+
+    // MARK: with equatable
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Sendable & Equatable, Action, Dependency
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Dependency>,
+        dependency: @escaping (EnvironmentValues) -> Dependency
+    ) -> some View {
+        modifier(ProxyModifier(dependency: dependency) { dependency in
+            Store(binding: binder, action: action, reducer: reducer, dependency: dependency, removeDuplicates: ==)
+        })
+    }
+
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Sendable & Equatable, Action
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Void>
+    ) -> some View {
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in })
+    }
 }
 
 // MARK: - for optional
@@ -65,40 +93,8 @@ extension View {
     ) -> some View {
         scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent)
     }
-}
 
-// MARK: - for equatable
-extension View {
-    @MainActor
-    public func scope<
-        PState: Sendable, PAction, PDependency,
-        State: Sendable & Equatable, Action, Dependency
-    >(
-        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
-        action: @escaping (State) -> PAction,
-        reducer: some Reducer<State, Action, Dependency>,
-        dependency: @escaping (EnvironmentValues) -> Dependency
-    ) -> some View {
-        modifier(ProxyModifier(dependency: dependency) { dependency in
-            Store(binding: binder, action: action, reducer: reducer, dependency: dependency, removeDuplicates: ==)
-        })
-    }
-
-    @MainActor
-    public func scope<
-        PState: Sendable, PAction, PDependency,
-        State: Sendable & Equatable, Action
-    >(
-        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State>,
-        action: @escaping (State) -> PAction,
-        reducer: some Reducer<State, Action, Void>
-    ) -> some View {
-        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in })
-    }
-}
-
-// MARK: - for optional & equatable
-extension View {
+    // MARK: with equatable
     @MainActor
     @ViewBuilder
     public func scope<
@@ -178,7 +174,7 @@ extension View {
         scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent, in: layout)
     }
 
-    // MARK: equatable
+    // MARK: with equatable
     @MainActor
     public func scope<
         PState: Sendable, PAction, PDependency,
