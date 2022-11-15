@@ -12,8 +12,10 @@ extension Effect {
         }
     }
 
-    @usableFromInline
-    func map<T>(_ transform: @escaping (@escaping TaskBody) -> Effect<T>.TaskBody) -> Effect<T> {
+    @inlinable
+    public func map<T>(
+        _ transform: (@escaping @Sendable @MainActor (Send) async -> Void) -> @Sendable @MainActor (Effect<T>.Send) async -> Void
+    ) -> Effect<T> {
         switch operation {
         case .none:
             return nil
