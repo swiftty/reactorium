@@ -134,6 +134,93 @@ extension View {
     }
 }
 
+// MARK: - for optional with custom layout
+@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+extension View {
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Sendable, Action, Dependency,
+        Layout: SwiftUI.Layout,
+        ElseContent: View
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Dependency>,
+        dependency: @escaping (EnvironmentValues) -> Dependency,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
+        in layout: Layout
+    ) -> some View {
+        modifier(OptionalProxyModifier(
+            initialState: binder.value,
+            dependency: dependency,
+            inject: { dependency, state in
+                Store(binding: binder.map { $0 ?? state }, action: action, reducer: reducer, dependency: dependency)
+            },
+            layout: layout,
+            elseContent: elseContent)
+        )
+    }
+
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Sendable, Action,
+        Layout: SwiftUI.Layout,
+        ElseContent: View
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Void>,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
+        in layout: Layout
+    ) -> some View {
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent, in: layout)
+    }
+
+    // MARK: equatable
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Equatable & Sendable, Action, Dependency,
+        Layout: SwiftUI.Layout,
+        ElseContent: View
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Dependency>,
+        dependency: @escaping (EnvironmentValues) -> Dependency,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
+        in layout: Layout
+    ) -> some View {
+        modifier(OptionalProxyModifier(
+            initialState: binder.value,
+            dependency: dependency,
+            inject: { dependency, state in
+                Store(binding: binder.map { $0 ?? state }, action: action, reducer: reducer, dependency: dependency, removeDuplicates: ==)
+            },
+            layout: layout,
+            elseContent: elseContent)
+        )
+    }
+
+    @MainActor
+    public func scope<
+        PState: Sendable, PAction, PDependency,
+        State: Equatable & Sendable, Action,
+        Layout: SwiftUI.Layout,
+        ElseContent: View
+    >(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
+        action: @escaping (State) -> PAction,
+        reducer: some Reducer<State, Action, Void>,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
+        in layout: Layout
+    ) -> some View {
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent, in: layout)
+    }
+}
+
 // MARK: -
 private struct ProxyModifier<State: Sendable, Action, Dependency>: ViewModifier {
     @StateObject var proxy = ProxyStore<State, Action, Dependency>()
@@ -153,6 +240,40 @@ private struct ProxyModifier<State: Sendable, Action, Dependency>: ViewModifier 
         }
     }
 }
+
+@available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+private struct OptionalProxyModifier<
+    State: Sendable, Action, Dependency,
+    Layout: SwiftUI.Layout,
+    ElseContent: View
+>: ViewModifier {
+    @StateObject var proxy = ProxyStore<State, Action, Dependency>()
+    let initialState: State?
+    let dependency: (EnvironmentValues) -> Dependency
+    let inject: (Dependency, State) -> Store<State, Action, Dependency>
+    let layout: Layout
+    let elseContent: () -> ElseContent
+
+    func body(content: Content) -> some View {
+        ZStack {
+            if let initialState {
+                DismantleView(proxy: proxy, dependency: dependency, inject: { d in inject(d, initialState) })
+                    .opacity(0)
+                    .frame(width: 0, height: 0)
+            }
+
+            layout {
+                if let store = proxy.store {
+                    content
+                        .environmentObject(store)
+                } else {
+                    elseContent()
+                }
+            }
+        }
+    }
+}
+
 
 // MARK: -
 #if canImport(UIKit)
