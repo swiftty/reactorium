@@ -132,29 +132,30 @@ extension View {
 
 // MARK: - for optional with custom layout
 @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
-extension View {
+extension Layout {
     @MainActor
     public func scope<
         PState: Sendable, PAction, PDependency,
         State: Sendable, Action, Dependency,
-        Layout: SwiftUI.Layout,
+        ThenContent: View,
         ElseContent: View
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Dependency>,
         dependency: @escaping (EnvironmentValues) -> Dependency,
-        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
-        in layout: Layout
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() }
     ) -> some View {
-        modifier(OptionalProxyModifier(
-            initialState: binder.value,
+        OptionalScoped(
+            binding: binder,
+            action: action,
+            reducer: reducer,
             dependency: dependency,
-            inject: { dependency, state in
-                Store(binding: binder.map { $0 ?? state }, action: action, reducer: reducer, dependency: dependency)
-            },
-            layout: layout,
-            elseContent: elseContent)
+            in: self,
+            then: thenContent,
+            else: elseContent,
+            removeDuplicates: nil
         )
     }
 
@@ -162,16 +163,16 @@ extension View {
     public func scope<
         PState: Sendable, PAction, PDependency,
         State: Sendable, Action,
-        Layout: SwiftUI.Layout,
+        ThenContent: View,
         ElseContent: View
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Void>,
-        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
-        in layout: Layout
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() }
     ) -> some View {
-        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent, in: layout)
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, then: thenContent, else: elseContent)
     }
 
     // MARK: with equatable
@@ -179,24 +180,24 @@ extension View {
     public func scope<
         PState: Sendable, PAction, PDependency,
         State: Equatable & Sendable, Action, Dependency,
-        Layout: SwiftUI.Layout,
+        ThenContent: View,
         ElseContent: View
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Dependency>,
         dependency: @escaping (EnvironmentValues) -> Dependency,
-        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
-        in layout: Layout
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() }
     ) -> some View {
-        modifier(OptionalProxyModifier(
-            initialState: binder.value,
+        OptionalScoped(
+            binding: binder,
+            action: action,
+            reducer: reducer,
             dependency: dependency,
-            inject: { dependency, state in
-                Store(binding: binder.map { $0 ?? state }, action: action, reducer: reducer, dependency: dependency, removeDuplicates: ==)
-            },
-            layout: layout,
-            elseContent: elseContent)
+            in: self,
+            then: thenContent,
+            else: elseContent
         )
     }
 
@@ -204,16 +205,16 @@ extension View {
     public func scope<
         PState: Sendable, PAction, PDependency,
         State: Equatable & Sendable, Action,
-        Layout: SwiftUI.Layout,
+        ThenContent: View,
         ElseContent: View
     >(
         binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<State?>,
         action: @escaping (State) -> PAction,
         reducer: some Reducer<State, Action, Void>,
-        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
-        in layout: Layout
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() }
     ) -> some View {
-        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, else: elseContent, in: layout)
+        scope(binding: binder, action: action, reducer: reducer, dependency: { _ in }, then: thenContent, else: elseContent)
     }
 }
 
@@ -238,29 +239,76 @@ private struct ProxyModifier<State: Sendable, Action, Dependency>: ViewModifier 
 }
 
 @available(macOS 13.0, iOS 16.0, tvOS 16.0, watchOS 9.0, *)
-private struct OptionalProxyModifier<
-    State: Sendable, Action, Dependency,
+private struct OptionalScoped<
+    PState: Sendable, PAction, PDependency,
+    R: Reducer,
     Layout: SwiftUI.Layout,
+    ThenContent: View,
     ElseContent: View
->: ViewModifier {
-    @StateObject var proxy = ProxyStore<State, Action, Dependency>()
-    let initialState: State?
-    let dependency: (EnvironmentValues) -> Dependency
-    let inject: (Dependency, State) -> Store<State, Action, Dependency>
+>: View where R.State: Sendable {
+    let binder: Store<PState, PAction, PDependency>.Bindable.Binder<R.State?>
+    let action: (R.State) -> PAction
+    let reducer: R
+    let dependency: (EnvironmentValues) -> R.Dependency
     let layout: Layout
+    let thenContent: () -> ThenContent
     let elseContent: () -> ElseContent
+    let isDuplicates: ((R.State, R.State) -> Bool)?
 
-    func body(content: Content) -> some View {
+    @StateObject var proxy = ProxyStore<R.State, R.Action, R.Dependency>()
+
+    init(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<R.State?>,
+        action: @escaping (R.State) -> PAction,
+        reducer: R,
+        dependency: @escaping (EnvironmentValues) -> R.Dependency,
+        in layout: Layout,
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() },
+        removeDuplicates isDuplicates: ((R.State, R.State) -> Bool)?
+    ) {
+        self.binder = binder
+        self.action = action
+        self.reducer = reducer
+        self.dependency = dependency
+        self.layout = layout
+        self.thenContent = thenContent
+        self.elseContent = elseContent
+        self.isDuplicates = isDuplicates
+    }
+
+    init(
+        binding binder: Store<PState, PAction, PDependency>.Bindable.Binder<R.State?>,
+        action: @escaping (R.State) -> PAction,
+        reducer: R,
+        dependency: @escaping (EnvironmentValues) -> R.Dependency,
+        in layout: Layout,
+        @ViewBuilder then thenContent: @escaping () -> ThenContent,
+        @ViewBuilder else elseContent: @escaping () -> ElseContent = { EmptyView() }
+    ) where R.State: Equatable {
+        self.init(binding: binder, action: action, reducer: reducer, dependency: dependency,
+                  in: layout, then: thenContent, else: elseContent, removeDuplicates: ==)
+    }
+
+    var body: some View {
         ZStack {
-            if let initialState {
-                DismantleView(proxy: proxy, dependency: dependency, inject: { d in inject(d, initialState) })
-                    .opacity(0)
-                    .frame(width: 0, height: 0)
+            if let state = binder.value {
+                DismantleView(proxy: proxy, dependency: dependency, inject: { dependency in
+                    Store(
+                        binding: binder.map { $0 ?? state },
+                        action: action,
+                        reducer: reducer,
+                        dependency: dependency,
+                        removeDuplicates: isDuplicates
+                    )
+                })
+                .opacity(0)
+                .frame(width: 0, height: 0)
             }
 
             layout {
                 if let store = proxy.store {
-                    content
+                    thenContent()
                         .environmentObject(store)
                 } else {
                     elseContent()
@@ -269,7 +317,6 @@ private struct OptionalProxyModifier<
         }
     }
 }
-
 
 // MARK: -
 #if canImport(UIKit)
