@@ -5,8 +5,7 @@ extension Effect {
     public struct Send {
         let body: @MainActor (Action) -> Void
 
-        @usableFromInline
-        init(body: @escaping (Action) -> Void) {
+        public init(_ body: @escaping (Action) -> Void) {
             self.body = body
         }
 
