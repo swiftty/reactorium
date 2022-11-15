@@ -2,12 +2,9 @@ import Foundation
 
 public struct Effect<Action> {
     @usableFromInline
-    typealias TaskBody = @Sendable @MainActor (Send) async -> Void
-
-    @usableFromInline
     enum Operation {
         case none
-        case task(TaskPriority? = nil, body: TaskBody)
+        case task(TaskPriority? = nil, body: @Sendable @MainActor (Send) async -> Void)
     }
 
     @usableFromInline
