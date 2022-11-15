@@ -452,6 +452,8 @@ extension TestState {
         }
 
         let nanoseconds = nanoseconds ?? timeout
+        let step = 10
+        assert(nanoseconds / UInt64(step) > 1)
 
         if inFlightEffects.isEmpty {
             _checkReceivedAction()
@@ -459,54 +461,49 @@ extension TestState {
         }
 
         await Task._yield()
-        let start = DispatchTime.now().uptimeNanoseconds
-        while !Task.isCancelled {
-            await Task._yield()
+        do {
+            for _ in 0..<step {
+                try await Task.sleep(nanoseconds: nanoseconds / UInt64(step))
 
-            if !receivedActions.isEmpty {
-                break
+                if !receivedActions.isEmpty {
+                    _checkReceivedAction()
+                    await Task._yield()
+                    return
+                }
             }
-
-            if start.distance(to: DispatchTime.now().uptimeNanoseconds) < nanoseconds {
-                continue
-            }
-
-            let suggestion: String
-            if inFlightEffects.isEmpty {
-                suggestion = """
-                There are no in-flight effects that could deliver this action. \
-                Could the effect you expected to deliver this action have been cancelled?
-                """
-            } else {
-                let message = (
-                    nanoseconds != timeout
-                    ? #"try increasing the duration of this assertion's "timeout""#
-                    : #"configure this assertion with an explicit "timeout""#
-                )
-                suggestion = """
-                There are effects in-flight. If the effect that delivers this action uses a \
-                clock (via "sleep(for:)", etc.), make sure that you wait enough time for it to perform the effect. \
-                If you are using a test clock, advance it so that the effects may complete, or consider using \
-                an immediate clock to immediately perform the effect instead.
-
-                If you are not yet using a clock, or can not use a clock, \
-                \(message).
-                """
-            }
-            XCTFail("""
-            Expected to receive an action, but received none\
-            \(nanoseconds > 0 ? " after \(Double(nanoseconds) / Double(NSEC_PER_SEC)) seconds" : "").
-
-            \(suggestion)
-            """, file: file, line: line)
-        }
-
-        if Task.isCancelled {
+        } catch {
+            assert(error is CancellationError)
             return
         }
 
-        _checkReceivedAction()
-        await Task._yield()
+        let suggestion: String
+        if inFlightEffects.isEmpty {
+            suggestion = """
+            There are no in-flight effects that could deliver this action. \
+            Could the effect you expected to deliver this action have been cancelled?
+            """
+        } else {
+            let message = (
+                nanoseconds != timeout
+                ? #"try increasing the duration of this assertion's "timeout""#
+                : #"configure this assertion with an explicit "timeout""#
+            )
+            suggestion = """
+            There are effects in-flight. If the effect that delivers this action uses a \
+            clock (via "sleep(for:)", etc.), make sure that you wait enough time for it to perform the effect. \
+            If you are using a test clock, advance it so that the effects may complete, or consider using \
+            an immediate clock to immediately perform the effect instead.
+
+            If you are not yet using a clock, or can not use a clock, \
+            \(message).
+            """
+        }
+        XCTFail("""
+        Expected to receive an action, but received none\
+        \(nanoseconds > 0 ? " after \(Double(nanoseconds) / Double(NSEC_PER_SEC)) seconds" : "").
+
+        \(suggestion)
+        """, file: file, line: line)
     }
 }
 
@@ -517,38 +514,39 @@ extension TestState {
         line: UInt
     ) async {
         let nanoseconds = nanoseconds ?? timeout
-        let start = DispatchTime.now().uptimeNanoseconds
+        let step = 10
+        assert(nanoseconds / UInt64(step) > 1)
 
         await Task._yield()
-        while !inFlightEffects.isEmpty {
-            await Task._yield()
+        for _ in 0..<step {
+            try? await Task.sleep(nanoseconds: nanoseconds / UInt64(step))
 
-            if start.distance(to: DispatchTime.now().uptimeNanoseconds) < nanoseconds {
-                continue
+            if inFlightEffects.isEmpty {
+                return
             }
-
-            let message = (
-                nanoseconds != timeout
-                ? #"try increasing the duration of this assertion's "timeout""#
-                : #"configure this assertion with an explicit "timeout""#
-            )
-            let suggestion = """
-            There are effects in-flight. If the effect that delivers this action uses a \
-            clock (via "sleep(for:)", etc.), make sure that you wait enough time for it to perform the effect. \
-            If you are using a test clock, advance it so that the effects may complete, or consider using \
-            an immediate clock to immediately perform the effect instead.
-
-            If you are not yet using a clock, or can not use a clock, \
-            \(message).
-            """
-
-            XCTFail("""
-            Expected effects to finish, but there are still effects in-flight\
-            \(nanoseconds > 0 ? " after \(Double(nanoseconds) / Double(NSEC_PER_SEC)) seconds" : "").
-
-            \(suggestion)
-            """, file: file, line: line)
         }
+
+        let message = (
+            nanoseconds != timeout
+            ? #"try increasing the duration of this assertion's "timeout""#
+            : #"configure this assertion with an explicit "timeout""#
+        )
+        let suggestion = """
+        There are effects in-flight. If the effect that delivers this action uses a \
+        clock (via "sleep(for:)", etc.), make sure that you wait enough time for it to perform the effect. \
+        If you are using a test clock, advance it so that the effects may complete, or consider using \
+        an immediate clock to immediately perform the effect instead.
+
+        If you are not yet using a clock, or can not use a clock, \
+        \(message).
+        """
+
+        XCTFail("""
+        Expected effects to finish, but there are still effects in-flight\
+        \(nanoseconds > 0 ? " after \(Double(nanoseconds) / Double(NSEC_PER_SEC)) seconds" : "").
+
+        \(suggestion)
+        """, file: file, line: line)
     }
 }
 
