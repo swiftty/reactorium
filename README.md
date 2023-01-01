@@ -19,7 +19,7 @@ A Lightwieght TCA for SwiftUI friendly.
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/swiftty/reactorium", branch: "main")
+    .package(url: "https://github.com/swiftty/reactorium", from: "0.0.0")
 ]
 ```
 
