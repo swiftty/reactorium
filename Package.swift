@@ -30,6 +30,7 @@ let package = Package(
     ]
 )
 
+#if false
 for target in package.targets where target.type == .regular {
     target.swiftSettings = [
         .unsafeFlags(["-Xfrontend", "-warn-long-function-bodies=200"],
@@ -38,3 +39,4 @@ for target in package.targets where target.type == .regular {
         .unsafeFlags(["-Xfrontend", "-enable-actor-data-race-checks"])
     ] + (target.swiftSettings ?? [])
 }
+#endif
