@@ -19,7 +19,7 @@ jobs:
       - uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: ${{ matrix.xcode }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Run tests
         run: |
           xcodebuild test -scheme reactorium -destination 'platform=iOS Simulator,name=iPhone 14 Pro'
