@@ -14,7 +14,7 @@ let package = Package(
             targets: ["Reactorium"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/pointfreeco/swift-clocks", from: "1.0.1"),
+        .package(url: "https://github.com/pointfreeco/swift-clocks", from: "1.0.2"),
         .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.1.2")
     ],
     targets: [
