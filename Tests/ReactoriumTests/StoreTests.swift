@@ -1,9 +1,10 @@
-import XCTest
+import Testing
 @testable import Reactorium
 
 @MainActor
-final class StoreTests: XCTestCase {
-    func test_scoped_store_receives_updates_from_parent() async {
+struct StoreTests {
+    @Test
+    func `test scoped store receives updates from parent`() async {
         struct Parent: Reducer {
             typealias State = Int
             typealias Action = Void
@@ -24,10 +25,10 @@ final class StoreTests: XCTestCase {
         let parent = Store(initialState: 0, reducer: Parent(), dependency: ())
         let child = Store(binding: parent.$state.description, action: { _ in () }, reducer: Child(), dependency: ())
 
-        XCTAssertEqual(child.state, "0")
+        #expect(child.state == "0")
 
         parent.send(())
 
-        XCTAssertEqual(child.state, "1")
+        #expect(child.state == "1")
     }
 }

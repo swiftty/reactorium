@@ -1,4 +1,4 @@
-import XCTest
+import Testing
 import Combine
 import Clocks
 @testable import Reactorium
@@ -12,8 +12,9 @@ extension Effect {
 }
 
 @MainActor
-final class TestStoreTests: XCTestCase {
-    func test_effect_concatenation() async {
+struct TestStoreTests {
+    @Test
+    func `test effect concatenation`() async {
         guard #available(iOS 16, macOS 13, tvOS 16, watchOS 9, *) else { return }
 
         struct MyReducer: Reducer {
@@ -69,7 +70,8 @@ final class TestStoreTests: XCTestCase {
         await store.send(.d)
     }
 
-    func test_async() async {
+    @Test
+    func `test async`() async {
         struct MyReducer: Reducer {
             typealias State = Int
             enum Action {
@@ -97,7 +99,8 @@ final class TestStoreTests: XCTestCase {
         }
     }
 
-    func test_expected_state_equality() async {
+    @Test
+    func `test expected state equality`() async {
         struct MyReducer: Reducer {
             struct State {
                 var count = 0
@@ -136,13 +139,14 @@ final class TestStoreTests: XCTestCase {
             $0.count = 1
         }
 
-        XCTExpectFailure("send/receive expects right state after mutation")
-        await store.send(.increment) {
-            $0.isChanging = false
-        }
-        await store.receive(.changed(from: 1, to: 2)) {
-            $0.isChanging = true
-            $0.count = 1100
+        await withKnownIssue("send/receive expects right state after mutation") {
+            await store.send(.increment) {
+                $0.isChanging = false
+            }
+            await store.receive(.changed(from: 1, to: 2)) {
+                $0.isChanging = true
+                $0.count = 1100
+            }
         }
     }
 }

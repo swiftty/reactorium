@@ -1,4 +1,4 @@
-import XCTest
+import Testing
 @testable import Reactorium
 
-final class ReactoriumTests: XCTestCase {}
+struct ReactoriumTests {}
