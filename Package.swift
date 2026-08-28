@@ -15,7 +15,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/pointfreeco/swift-clocks", from: "1.1.1"),
-        .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.7.0")
+        .package(url: "https://github.com/pointfreeco/swift-custom-dump", from: "1.7.3")
     ],
     targets: [
         .target(
