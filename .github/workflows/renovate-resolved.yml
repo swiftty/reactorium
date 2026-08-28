@@ -1,0 +1,43 @@
+name: renovate-resolved
+
+on:
+  push:
+    branches: ["renovate/**"]
+    paths:
+      - "Package.swift"
+
+jobs:
+  mac-os:
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - name: Git settings
+        shell: bash
+        run: |
+          # https://qiita.com/thaim/items/3d1a4d09ec4a7d8844ce
+          git config --local user.name "github-actions[bot]"
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Select Xcode
+        shell: bash
+        run: |
+          # renovate-xcodereleases: runs-on=macos-26
+          sudo xcode-select --switch "/Applications/Xcode_26.6.app"
+      - name: Update Package.resolved
+        run: |
+          swift package resolve
+      - name: Check for changes
+        id: check_changes
+        run: |
+          git add -u
+          if git diff --cached --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Commit Package.resolved
+        if: ${{ steps.check_changes.outputs.has_changes == 'true' }}
+        run: |
+          git commit -m "Update Package.resolved"
+          git push origin HEAD
