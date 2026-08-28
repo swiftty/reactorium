@@ -1,8 +1,8 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended"
+    "github>swiftty/renovate-config#v0.0.2",
+    "github>swiftty/renovate-xcodereleases#v0.0.3"
   ],
-  "timezone": "Asia/Tokyo",
-  "automerge": true
+  "timezone": "Asia/Tokyo"
 }
